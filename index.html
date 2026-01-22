@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 图片管理对比工具</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="sidebar">
+    <h3>Image Gallery</h3>
+    <div id="all-category-btn" class="nav-item active" onclick="filterCategory('all')">全部</div>
+    <div id="category-list"></div>
+    <hr style="width:100%; border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 24px 0;">
+    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()" style="width: 100%; margin-top: auto; border-radius: 14px; padding: 16px 20px; font-size: 16px; font-weight: 600; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">+ 上传图片</button>
+    <input type="file" id="fileInput" hidden multiple accept="image/*">
+</div>
+
+<div id="main">
+    <header>
+        <h2 id="current-category">全部图片</h2>
+        <div class="toolbar">
+            <button class="btn btn-secondary" onclick="toggleSelectAll()" id="toggle-select-btn">全选</button>
+            <button class="btn btn-primary" onclick="toggleModeFilter()" id="mode-toggle-btn">TGA</button>
+            <button class="btn btn-compare" onclick="openCompare()">对比分析</button>
+            <button class="btn btn-danger" onclick="deleteSelected()">删除选中</button>
+            <button class="btn btn-primary" onclick="showCategoryManagementModal()" id="manage-cat-btn">分类管理</button>
+            
+            <!-- 响应式菜单按钮，屏幕窄时显示 -->
+            <button class="menu-toggle-btn" onclick="toggleResponsiveMenu()">
+                <span class="menu-icon">☰</span>
+            </button>
+        </div>
+        
+        <!-- 响应式菜单面板 -->
+        <div class="responsive-menu-panel" id="responsive-menu-panel">
+            <button class="btn btn-secondary" onclick="toggleSelectAll()" id="mobile-toggle-select-btn">全选</button>
+            <button class="btn btn-primary" onclick="toggleModeFilter()" id="mobile-mode-toggle-btn">DSC</button>
+            <button class="btn btn-compare" onclick="openCompare()">对比分析</button>
+            <button class="btn btn-danger" onclick="deleteSelected()">删除选中</button>
+            <button class="btn btn-primary" onclick="showCategoryManagementModal()">分类管理</button>
+        </div>
+    </header>
+    
+    <div id="sub-category-container"></div>
+    
+    <div id="gallery"></div>
+</div>
+
+<!-- 对比蒙层 -->
+<div id="compare-overlay">
+    <div class="compare-header">
+        <div>
+            <h3>对比分析视图</h3>
+            <small style="color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 4px; display: block;">
+                提示：使用 ← → 箭头键切换页面，ESC 退出
+            </small>
+        </div>
+        <button class="btn btn-danger" onclick="closeCompare()">退出对比</button>
+    </div>
+    <div class="compare-container" id="compare-container"></div>
+</div>
+
+<!-- 放大查看蒙层 -->
+<div id="zoom-overlay" class="hidden" onclick="closeZoom(event)">
+    <div class="zoom-content">
+        <div class="zoom-sidebar" onclick="event.stopPropagation()">
+            <div id="zoom-list"></div>
+        </div>
+        <div class="zoom-main">
+            <img id="zoom-image" src="" alt="">
+            <div id="zoom-title" class="zoom-title"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast 通知组件 -->
+<div id="toast-container"></div>
+
+<!-- 图片详情弹窗 -->
+<div id="detail-overlay" onclick="closeDetail(event)">
+    <div class="detail-content" onclick="event.stopPropagation()">
+        <div class="detail-header">
+            <h3>图片详情</h3>
+            <button onclick="closeDetail()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b;">&times;</button>
+        </div>
+        <div class="detail-body">
+            <div class="detail-image-wrapper">
+                <div class="detail-image-container">
+                    <img id="detail-image" class="detail-image" src="" alt="" onclick="zoomFromDetail()">
+                    <!-- 图片内部取景框 -->
+                    <div id="detail-loupe-view" class="detail-loupe-view" style="display: none;"></div>
+                </div>
+            </div>
+            <div class="detail-form">
+                <!-- 在detail-form内部的放大遮罩层 -->
+                <div id="detail-magnifier-overlay" class="detail-magnifier-overlay" style="display: none;">
+                    <div class="detail-magnifier-content">
+                        <img id="detail-magnifier-image" class="detail-magnifier-image" src="" alt="">
+                    </div>
+                </div>
+                <div class="name-category-group">
+                    <div class="form-group">
+                        <label>图片名称</label>
+                        <input type="text" id="detail-name" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>主分类</label>
+                        <select id="detail-category"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>标签</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="detail-tags-input" placeholder="输入标签后按回车添加" style="flex: 1; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; transition: border-color 0.2s;" onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#e2e8f0'" onkeypress="if(event.key==='Enter'){event.preventDefault();addTagToDetail();}">
+                        <button type="button" onclick="addTagToDetail()" style="padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; cursor: pointer; color: white; font-size: 14px; font-weight: 500;">添加</button>
+                    </div>
+                    <div id="detail-tags-container" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; min-height: 40px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; background: #f8fafc;"></div>
+                </div>
+                <div class="form-group">
+                    <label>创建日期</label>
+                    <input type="text" id="detail-date" readonly>
+                </div>
+            </div>
+        </div>
+        <div class="detail-footer">
+            <button class="btn btn-secondary" onclick="closeDetail()">取消</button>
+            <button class="btn btn-primary" onclick="saveDetail()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 全新设计的分类管理模态窗口 -->
+<div id="category-management-modal" class="modal-overlay-new" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; backdrop-filter: blur(5px);">
+    <div class="modal-content-new">
+        <!-- 模态窗口头部 -->
+        <div class="modal-header-new">
+            <div class="modal-title-section">
+                <h3>📂 分类与标签管理</h3>
+                <p>管理您的图片分类和标签系统</p>
+            </div>
+            <button id="close-category-modal" class="modal-close-btn">×</button>
+        </div>
+        
+        <!-- 标签页导航 -->
+        <div class="tab-navigation">
+            <button class="tab-link active" data-tab="categories">主分类</button>
+            <button class="tab-link" data-tab="tags">标签</button>
+        </div>
+        
+        <!-- 标签页内容 -->
+        <div class="tab-content">
+            <!-- 主分类管理 -->
+            <div id="categories" class="tab-pane-new active">
+                <div class="section-header">
+                    <h4>管理主分类</h4>
+                    <div class="actions">
+                        <input type="text" id="new-category-input" placeholder="输入新分类名称" class="input-field">
+                        <button id="add-category-btn" class="btn-primary">+ 添加分类</button>
+                    </div>
+                </div>
+                <div id="categories-list" class="items-list"></div>
+            </div>
+            
+            <!-- 标签管理 -->
+            <div id="tags" class="tab-pane-new">
+                <div class="section-header">
+                    <h4>管理标签</h4>
+                    <div class="actions">
+                        <input type="text" id="new-tag-input-modal" placeholder="输入新标签名称" class="input-field">
+                        <button id="add-tag-btn" class="btn-primary">+ 添加标签</button>
+                    </div>
+                </div>
+                <div id="tags-list" class="items-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 重命名对话框 -->
+<div id="rename-dialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog-content">
+        <div class="dialog-header">
+            <h4>编辑名称</h4>
+            <button id="close-rename-dialog" class="dialog-close">×</button>
+        </div>
+        <div class="dialog-body">
+            <input type="text" id="rename-input" placeholder="输入新名称" class="input-field">
+        </div>
+        <div class="dialog-footer">
+            <button id="cancel-rename" class="btn-secondary">取消</button>
+            <button id="confirm-rename" class="btn-primary">确认</button>
+        </div>
+    </div>
+</div>
+
+<!-- 确认对话框 -->
+<div id="confirm-dialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog-content">
+        <div class="dialog-header">
+            <h4>确认操作</h4>
+            <button id="close-confirm-dialog" class="dialog-close">×</button>
+        </div>
+        <div class="dialog-body">
+            <p id="confirm-message">确认执行此操作？</p>
+        </div>
+        <div class="dialog-footer">
+            <button id="cancel-confirm" class="btn-secondary">取消</button>
+            <button id="confirm-action" class="btn-danger">确认</button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
