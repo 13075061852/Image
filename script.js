@@ -1181,32 +1181,34 @@ async function handleZipFile(file) {
                 const imageData = await zipEntry.async('base64');
                 const base64Data = `data:image/${ext};base64,${imageData}`;
                 
-                // 创建图片对象
-                const newImage = {
-                    id: Date.now() + Math.random(), // 生成唯一ID
-                    name: actualFilename,
-                    data: base64Data,
-                    category: category || '',
-                    date: new Date().toLocaleDateString('zh-CN'),
-                    tags: []
-                };
+                // 创建一个Blob对象来模拟文件
+                const byteCharacters = atob(imageData);
+                const byteArrays = [];
                 
-                // 如果是新分类，添加到分类列表
-                if (category && !allImages.some(img => img.category === category && !img.isEmptyCategory)) {
-                    // 不需要显式添加分类，saveImage会处理
+                for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                    const slice = byteCharacters.slice(offset, offset + 512);
+                    
+                    const byteNumbers = new Array(slice.length);
+                    for (let i = 0; i < slice.length; i++) {
+                        byteNumbers[i] = slice.charCodeAt(i);
+                    }
+                    
+                    const byteArray = new Uint8Array(byteNumbers);
+                    byteArrays.push(byteArray);
                 }
                 
-                // 保存到数据库
-                await saveImageToDB(newImage);
+                const blob = new Blob(byteArrays, {type: `image/${ext}`});
+                blob.name = actualFilename; // 添加名称属性
                 
-                // 更新内存中的图片列表
-                allImages.push(newImage);
+                // 使用现有的saveImage函数保存图片到指定分类
+                await saveImage(blob, category || 'all'); // 使用'all'表示默认分类
                 
                 importedFiles++;
             }
         }
         
-        // 重新渲染界面
+        // 重新加载图片列表以反映新导入的图片
+        await loadImages();
         renderGallery();
         renderCategories();
         
