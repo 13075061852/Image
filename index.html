@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 图片管理对比工具</title>
+    <title>Image Gallery</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -31,7 +31,7 @@
                         <button class="btn btn-import" onclick="showImportDialog()">📥 导入数据</button>
             
             <!-- 响应式菜单按钮，屏幕窄时显示 -->
-            <button class="menu-toggle-btn" onclick="toggleResponsiveMenu()">
+            <button class="menu-toggle-btn" onclick="handleMenuToggle(event)">
                 <span class="menu-icon">☰</span>
             </button>
         </div>
@@ -41,7 +41,8 @@
             <button class="btn btn-secondary" onclick="toggleSelectAll()" id="mobile-toggle-select-btn">全选</button>
             <button class="btn btn-primary" onclick="toggleModeFilter()" id="mobile-mode-toggle-btn">DSC</button>
             <button class="btn btn-compare" onclick="openCompare()">对比分析</button>
-            <button class="btn btn-print" onclick="printSelected()">🖨️ 打印选中</button>
+            <button class="btn btn-print" onclick="printSelected()">🖥️ 打印选中</button>
+            <button class="btn btn-console" onclick="console.log(1)">🔢 控制台打印1</button>
             <button class="btn btn-export" onclick="exportSelected()">📤 导出选中</button>
             <button class="btn btn-danger" onclick="deleteSelected()">删除选中</button>
             <button class="btn btn-primary" onclick="showCategoryManagementModal()">分类管理</button>

@@ -42,6 +42,7 @@ body {
     position: relative;
     overflow: hidden;
     height: 100vh; /* 占满整个视口高度 */
+    transition: all 0.3s ease; /* 添加过渡动画 */
 }
 
 #sidebar::before {
@@ -63,6 +64,7 @@ body {
     text-align: center;
     position: relative;
     z-index: 2;
+    transition: all 0.3s ease; /* 添加过渡动画 */
 }
 
 #sidebar h3::after {
@@ -76,6 +78,43 @@ body {
     background: linear-gradient(90deg, #4f46e5, #7c3aed);
     border-radius: 2px;
 }
+
+/* 小屏幕下收缩侧边栏 */
+@media (max-width: 768px) {
+    #sidebar {
+        width: 70px; /* 收缩宽度 */
+        padding: 16px 8px;
+        overflow-x: hidden;
+    }
+    
+    #sidebar h3 {
+        font-size: 0; /* 隐藏标题文字 */
+        padding: 0;
+    }
+    
+    #sidebar h3::after {
+        display: none; /* 隐藏装饰线 */
+    }
+    
+    .nav-item {
+        padding: 12px 8px; /* 减少内边距 */
+        font-size: 12px; /* 减小字体 */
+    }
+    
+    .nav-item span:first-child {
+        display: none; /* 隐藏分类名称 */
+    }
+    
+    .nav-item .stats {
+        display: none; /* 隐藏统计信息 */
+    }
+    
+    #sidebar button.btn-primary {
+        display: none; /* 在收缩状态下隐藏上传按钮 */
+    }
+}
+
+
 
 .nav-item { 
     padding: 12px 16px; 
@@ -154,6 +193,93 @@ body {
     background: var(--bg);
     min-height: 0; /* 确保flex容器正确计算高度 */
     height: 100vh; /* 占满整个视口高度 */
+}
+
+/* 隐藏滚动条但保留滚动功能 */
+#main::-webkit-scrollbar {
+    width: 0px; /* 完全隐藏滚动条 */
+}
+
+#main::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#main::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+#main::-webkit-scrollbar-thumb:hover {
+    background: transparent;
+}
+
+/* 图片画廊的滚动条 */
+#gallery::-webkit-scrollbar {
+    width: 0px; /* 完全隐藏滚动条 */
+    height: 0px;
+}
+
+#gallery::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#gallery::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+#gallery::-webkit-scrollbar-thumb:hover {
+    background: transparent;
+}
+
+/* 侧边栏滚动条 */
+#sidebar::-webkit-scrollbar {
+    width: 0px; /* 完全隐藏滚动条 */
+}
+
+#sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#sidebar::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+#sidebar::-webkit-scrollbar-thumb:hover {
+    background: transparent;
+}
+
+/* 全局隐藏滚动条但保留滚动功能 */
+*::-webkit-scrollbar {
+    width: 0px; /* 完全隐藏滚动条 */
+    height: 0px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: transparent;
+}
+
+/* Firefox和IE/Edge浏览器的滚动条隐藏 */
+* {
+    -ms-overflow-style: none; /* 隐藏IE/Edge的滚动条 */
+    scrollbar-width: none; /* 隐藏Firefox的滚动条 */
+}
+
+/* 针对特定容器的滚动条隐藏 */
+#main, #gallery, #sidebar, #zoom-list, #detail-tags-container, .items-list, .responsive-menu-panel, .zoom-sidebar, .compare-container {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+#main::-webkit-scrollbar, #gallery::-webkit-scrollbar, #sidebar::-webkit-scrollbar, #zoom-list::-webkit-scrollbar, #detail-tags-container::-webkit-scrollbar, .items-list::-webkit-scrollbar, .responsive-menu-panel::-webkit-scrollbar, .zoom-sidebar::-webkit-scrollbar, .compare-container::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
 }
 
 header { 
@@ -238,6 +364,21 @@ header h2 {
     gap: 4px;
     padding: 8px;
     margin-top: 4px;
+}
+
+/* 在小屏幕上，当需要显示时使用 flex */
+.responsive-menu-panel.show {
+    display: flex !important;
+}
+
+@media (max-width: 768px) {
+    .responsive-menu-panel {
+        display: none;
+    }
+    
+    .responsive-menu-panel.show {
+        display: flex;
+    }
 }
 
 .responsive-menu-panel .btn {
@@ -349,6 +490,15 @@ header h2 {
     background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
 }
 
+.btn-console { 
+    background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); 
+    color: white; 
+}
+
+.btn-console:hover {
+    background: linear-gradient(135deg, #be185d 0%, #9d174d 100%);
+}
+
 .btn-export {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
@@ -380,6 +530,23 @@ header h2 {
 
 .btn-import:hover {
     background: linear-gradient(135deg, #256bed 0%, #1d4ed8 100%);
+    transform: translateY(-1px);
+}
+
+.btn-test {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-test:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
     transform: translateY(-1px);
 }
 

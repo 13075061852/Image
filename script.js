@@ -504,28 +504,52 @@ function toggleModeFilter() {
 // 切换响应式菜单
 function toggleResponsiveMenu() {
     const menuPanel = document.getElementById('responsive-menu-panel');
-    const isVisible = menuPanel.style.display === 'block';
+    const isShown = menuPanel.classList.contains('show');
     
-    if (isVisible) {
-        menuPanel.style.display = 'none';
+    if (isShown) {
+        menuPanel.classList.remove('show');
     } else {
-        // 在显示菜单前，确保它具有正确的样式
-        menuPanel.style.display = 'block';
-        menuPanel.style.position = 'absolute'; // 确保使用绝对定位
+        menuPanel.classList.add('show');
     }
 }
+
+// 处理菜单切换事件，同时在控制台打印1
+function handleMenuToggle(event) {
+    console.log(1);
+    toggleResponsiveMenu();
+    // 阻止事件冒泡，防止立即被关闭
+    event.stopPropagation();
+}
+
+
 
 // 点击页面其他地方关闭响应式菜单
 document.addEventListener('click', function(event) {
     const menuPanel = document.getElementById('responsive-menu-panel');
     const menuButton = document.querySelector('.menu-toggle-btn');
     
-    // 如果菜单面板是可见的，且点击的目标不在菜单面板内，也不在菜单按钮内，则关闭菜单
-    if (menuPanel && menuPanel.style.display !== 'none' && 
-        !menuPanel.contains(event.target) && 
-        !menuButton.contains(event.target) && 
-        event.target !== menuButton) {
-        menuPanel.style.display = 'none';
+    // 检查是否在小屏幕模式下
+    const isMobileView = window.innerWidth <= 768;
+    
+    // 只在小屏幕模式下处理菜单关闭逻辑
+    if (isMobileView && menuPanel && menuPanel.classList.contains('show')) {
+        // 如果点击的目标不在菜单面板内，也不在菜单按钮内，则关闭菜单
+        if (!menuPanel.contains(event.target) && 
+            !menuButton.contains(event.target) && 
+            event.target !== menuButton) {
+            menuPanel.classList.remove('show');
+        }
+    }
+});
+
+// 确保响应式菜单在窗口大小改变时正确处理
+window.addEventListener('resize', function() {
+    const menuPanel = document.getElementById('responsive-menu-panel');
+    const isMobileView = window.innerWidth <= 768;
+    
+    // 如果在非移动视图中，强制关闭菜单
+    if (!isMobileView && menuPanel.classList.contains('show')) {
+        menuPanel.classList.remove('show');
     }
 });
 
@@ -2345,6 +2369,14 @@ function openZoomByIndex(index) {
 
     overlay.classList.remove('hidden');
     overlay.style.display = 'flex';
+    
+    // 确保当前选中的缩略图在可视区域内
+    setTimeout(() => {
+        const activeThumb = list.querySelector('.zoom-thumb.active');
+        if (activeThumb) {
+            activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, 50);
     
     // 为放大覆盖层添加滚轮事件监听器，用于切换图片
     overlay.onwheel = (e) => {
