@@ -24,8 +24,11 @@
             <button class="btn btn-secondary" onclick="toggleSelectAll()" id="toggle-select-btn">全选</button>
             <button class="btn btn-primary" onclick="toggleModeFilter()" id="mode-toggle-btn">TGA</button>
             <button class="btn btn-compare" onclick="openCompare()">对比分析</button>
+            <button class="btn btn-print" onclick="printSelected()">🖨️ 打印选中</button>
+            <button class="btn btn-export" onclick="exportSelected()">📤 导出选中</button>
             <button class="btn btn-danger" onclick="deleteSelected()">删除选中</button>
             <button class="btn btn-primary" onclick="showCategoryManagementModal()" id="manage-cat-btn">分类管理</button>
+                        <button class="btn btn-import" onclick="showImportDialog()">📥 导入数据</button>
             
             <!-- 响应式菜单按钮，屏幕窄时显示 -->
             <button class="menu-toggle-btn" onclick="toggleResponsiveMenu()">
@@ -38,8 +41,11 @@
             <button class="btn btn-secondary" onclick="toggleSelectAll()" id="mobile-toggle-select-btn">全选</button>
             <button class="btn btn-primary" onclick="toggleModeFilter()" id="mobile-mode-toggle-btn">DSC</button>
             <button class="btn btn-compare" onclick="openCompare()">对比分析</button>
+            <button class="btn btn-print" onclick="printSelected()">🖨️ 打印选中</button>
+            <button class="btn btn-export" onclick="exportSelected()">📤 导出选中</button>
             <button class="btn btn-danger" onclick="deleteSelected()">删除选中</button>
             <button class="btn btn-primary" onclick="showCategoryManagementModal()">分类管理</button>
+            <button class="btn btn-import" onclick="showImportDialog()">📥 导入数据</button>
         </div>
     </header>
     
@@ -57,7 +63,10 @@
                 提示：使用 ← → 箭头键切换页面，ESC 退出
             </small>
         </div>
-        <button class="btn btn-danger" onclick="closeCompare()">退出对比</button>
+        <div class="compare-controls">
+            <button class="btn btn-secondary" onclick="toggleZoomView()">🔍 放大视图</button>
+            <button class="btn btn-danger" onclick="closeCompare()">退出对比</button>
+        </div>
     </div>
     <div class="compare-container" id="compare-container"></div>
 </div>
@@ -88,18 +97,10 @@
         <div class="detail-body">
             <div class="detail-image-wrapper">
                 <div class="detail-image-container">
-                    <img id="detail-image" class="detail-image" src="" alt="" onclick="zoomFromDetail()">
-                    <!-- 图片内部取景框 -->
-                    <div id="detail-loupe-view" class="detail-loupe-view" style="display: none;"></div>
+                    <img id="detail-image" class="detail-image" src="" alt="">
                 </div>
             </div>
             <div class="detail-form">
-                <!-- 在detail-form内部的放大遮罩层 -->
-                <div id="detail-magnifier-overlay" class="detail-magnifier-overlay" style="display: none;">
-                    <div class="detail-magnifier-content">
-                        <img id="detail-magnifier-image" class="detail-magnifier-image" src="" alt="">
-                    </div>
-                </div>
                 <div class="name-category-group">
                     <div class="form-group">
                         <label>图片名称</label>
@@ -212,7 +213,7 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="script.js"></script>
-
 </body>
 </html>
