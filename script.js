@@ -1216,12 +1216,11 @@ async function handleZipFile(file) {
                 if (tagsInfo) {
                     const tagInfo = tagsInfo.find(info => info.name === actualFilename);
                     if (tagInfo && tagInfo.tags && tagInfo.tags.length > 0) {
-                        // 查找刚保存的图片
-                        const savedImage = allImages.find(img => img.name === actualFilename);
-                        if (savedImage) {
-                            // 更新图片的标签
-                            await updateImageTags(savedImage.id, tagInfo.tags);
+                        // 将标签信息存储在临时数组中，稍后统一处理
+                        if (!window.pendingTagUpdates) {
+                            window.pendingTagUpdates = [];
                         }
+                        window.pendingTagUpdates.push({ name: actualFilename, tags: tagInfo.tags });
                     }
                 }
                 
@@ -1233,6 +1232,20 @@ async function handleZipFile(file) {
         await loadImages();
         renderGallery();
         renderCategories();
+        
+        // 处理待更新的标签
+        if (window.pendingTagUpdates && window.pendingTagUpdates.length > 0) {
+            for (const update of window.pendingTagUpdates) {
+                await updateImageTagsByName(update.name, update.tags);
+            }
+            // 清空待更新列表
+            window.pendingTagUpdates = [];
+            
+            // 再次重新加载以确保标签更新生效
+            await loadImages();
+            renderGallery();
+            renderCategories();
+        }
         
         showToast(`导入完成：成功导入 ${importedFiles} 个文件，跳过 ${skippedFiles} 个文件`, 'success');
         closeImportDialog();
@@ -1839,23 +1852,52 @@ async function deleteCategory(name) {
     };
 }
 
-// 更新图片标签
+// 更新图片标签（通过ID）
 async function updateImageTags(imageId, newTags) {
-    const transaction = db.transaction([STORE_NAME], "readwrite");
-    const objectStore = transaction.objectStore(STORE_NAME);
-    
-    objectStore.openCursor().onsuccess = function(event) {
-        const cursor = event.target.result;
-        if (cursor) {
-            const value = cursor.value;
-            if (value.id === imageId) {
-                value.tags = newTags;
-                cursor.update(value);
-                return;
+    return new Promise((resolve) => {
+        const transaction = db.transaction([STORE_NAME], "readwrite");
+        const objectStore = transaction.objectStore(STORE_NAME);
+        
+        objectStore.openCursor().onsuccess = function(event) {
+            const cursor = event.target.result;
+            if (cursor) {
+                const value = cursor.value;
+                if (value.id === imageId) {
+                    value.tags = newTags;
+                    cursor.update(value);
+                    resolve(); // 更新完成后解决Promise
+                    return;
+                }
+                cursor.continue();
+            } else {
+                resolve(); // 如果没有找到匹配项也解决Promise
             }
-            cursor.continue();
-        }
-    };
+        };
+    });
+}
+
+// 更新图片标签（通过名称）
+async function updateImageTagsByName(imageName, newTags) {
+    return new Promise((resolve) => {
+        const transaction = db.transaction([STORE_NAME], "readwrite");
+        const objectStore = transaction.objectStore(STORE_NAME);
+        
+        objectStore.openCursor().onsuccess = function(event) {
+            const cursor = event.target.result;
+            if (cursor) {
+                const value = cursor.value;
+                if (value.name === imageName) {
+                    value.tags = newTags;
+                    cursor.update(value);
+                    resolve(); // 更新完成后解决Promise
+                    return;
+                }
+                cursor.continue();
+            } else {
+                resolve(); // 如果没有找到匹配项也解决Promise
+            }
+        };
+    });
 }
 
 // 删除选中的图片
