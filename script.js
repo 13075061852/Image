@@ -209,19 +209,39 @@ function renderCategories() {
     const realCategories = allImages.filter(img => !img.isEmptyCategory).map(img => img.category);
     
     // 合并所有分类并去重
-    const allCategories = [...new Set([...emptyCategoryRecords, ...realCategories])].filter(cat => cat !== undefined && cat !== 'all');
+    let allCategories = [...new Set([...emptyCategoryRecords, ...realCategories])].filter(cat => cat !== undefined && cat !== '' && cat !== 'all' && cat !== '全部');
+    
+    // 确保 "其他" 分类始终存在，如果没有则创建一个空的
+    if (!allCategories.includes('其他')) {
+        // 添加到数组末尾，确保它出现在列表底部
+        allCategories.push('其他');
+    }
+    
+    // 排序：普通分类按字母顺序排列，"其他"放在最后
+    allCategories.sort();
     
     const container = document.getElementById('category-list');
     
     // 为每个分类计算统计信息并生成HTML（不包括"全部"，因为它已在HTML中静态定义）
     const html = allCategories.map(cat => {
-        const categoryImages = allImages.filter(img => img.category === cat && !img.isEmptyCategory);
+        let categoryImages = [];
+        if (cat === '其他') {
+            // 对于"其他"分类，包含所有没有分类的图片以及明确分类为"其他"的图片
+            categoryImages = allImages.filter(img => (img.category === null || img.category === '' || img.category === '其他') && !img.isEmptyCategory);
+        } else {
+            categoryImages = allImages.filter(img => img.category === cat && !img.isEmptyCategory);
+        }
+        
         const categoryCount = categoryImages.length;
         const selectedCount = categoryImages.filter(img => selectedIds.has(img.id)).length;
         
+        // 检查是否是小屏幕模式
+        const isSmallScreen = window.innerWidth <= 768;
+        const displayName = isSmallScreen ? cat.substring(0, 2) : cat; // 只显示前两个字符
+        
         return `
-            <div class="nav-item ${currentFilter === cat ? 'active' : ''}" onclick="filterCategory('${cat}')">
-                <span>${cat}</span>
+            <div class="nav-item ${currentFilter === cat ? 'active' : ''}" onclick="filterCategory('${cat}')" title="${cat} (${categoryCount})">
+                <span>${displayName}</span>
                 <span class="stats">(${categoryCount}) <span class="selected-count">${selectedCount}</span></span>
             </div>
         `;
@@ -246,8 +266,12 @@ function updateAllCategoryStats() {
     
     const allCategoryBtn = document.getElementById('all-category-btn');
     if (allCategoryBtn) {
+        // 检查是否是小屏幕模式
+        const isSmallScreen = window.innerWidth <= 768;
+        const displayName = isSmallScreen ? '全部'.substring(0, 2) : '全部'; // 只显示前两个字符
+        
         allCategoryBtn.innerHTML = `
-            <span>全部</span>
+            <span>${displayName}</span>
             <span class="stats">(${allImagesCount}) <span class="selected-count">${allSelectedCount}</span></span>
         `;
         
@@ -272,14 +296,34 @@ function renderTags() {
         allTags = [...new Set(allImages
             .filter(img => !img.isEmptyCategory && img.tags)
             .flatMap(img => img.tags)
-        )].sort();
+        )];
     } else {
         // 如果是特定分类，只获取该分类下的标签
         allTags = [...new Set(allImages
             .filter(img => !img.isEmptyCategory && img.category === currentFilter && img.tags)
             .flatMap(img => img.tags)
-        )].sort();
+        )];
     }
+    
+    // 定义优先显示的标签
+    const priorityTags = ['PBT', 'PET', 'PBT+PET', 'PC', 'PA6', 'PA66'];
+    
+    // 对标签进行排序：优先标签在前，其余按字母顺序
+    allTags.sort((a, b) => {
+        const aIsPriority = priorityTags.includes(a);
+        const bIsPriority = priorityTags.includes(b);
+        
+        // 如果两者都是优先标签或都不是优先标签，按在priorityTags中的顺序或字母顺序排序
+        if (aIsPriority && bIsPriority) {
+            return priorityTags.indexOf(a) - priorityTags.indexOf(b);
+        } else if (aIsPriority && !bIsPriority) {
+            return -1; // a排在b前面
+        } else if (!aIsPriority && bIsPriority) {
+            return 1; // b排在a前面
+        } else {
+            return a.localeCompare(b); // 都不是优先标签时按字母顺序
+        }
+    });
         
     if (allTags.length === 0) {
         // 如果没有标签，不显示标签导航
@@ -309,7 +353,12 @@ function renderGallery() {
     filtered = filtered.filter(img => !img.isEmptyCategory);
     
     if (currentFilter !== 'all') {
-        filtered = filtered.filter(img => img.category === currentFilter);
+        if (currentFilter === '其他') {
+            // 显示所有没有分类的图片以及明确分类为"其他"的图片
+            filtered = filtered.filter(img => img.category === null || img.category === '' || img.category === '其他');
+        } else {
+            filtered = filtered.filter(img => img.category === currentFilter);
+        }
     }
     
     // 如果设置了标签过滤（支持多选）
@@ -328,7 +377,7 @@ function renderGallery() {
     
     container.innerHTML = filtered.map(img => {
         const tagsDisplay = img.tags && img.tags.length > 0 ? img.tags.join(', ') : '无标签';
-        const categoryDisplay = img.category || '无分类';
+        const categoryDisplay = img.category ? img.category : '其他';
         // 检测图片名称是否包含DSC或TGA后缀
         const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' : 
                       hasSuffix(img.name, 'TGA') ? 'TGA' : '';
@@ -383,7 +432,12 @@ function selectAllVisible() {
     visible = visible.filter(img => !img.isEmptyCategory);
     
     if (currentFilter !== 'all') {
-        visible = visible.filter(img => img.category === currentFilter);
+        if (currentFilter === '其他') {
+            // 选择所有没有分类的图片以及明确分类为"其他"的图片
+            visible = visible.filter(img => img.category === null || img.category === '' || img.category === '其他');
+        } else {
+            visible = visible.filter(img => img.category === currentFilter);
+        }
     }
     
     if (currentTagFilters.length > 0) {
@@ -444,7 +498,12 @@ function updateUI() {
         visible = visible.filter(img => !img.isEmptyCategory);
         
         if (currentFilter !== 'all') {
-            visible = visible.filter(img => img.category === currentFilter);
+            if (currentFilter === '其他') {
+                // 计算所有没有分类的图片以及明确分类为"其他"的图片
+                visible = visible.filter(img => img.category === null || img.category === '' || img.category === '其他');
+            } else {
+                visible = visible.filter(img => img.category === currentFilter);
+            }
         }
         
         if (currentTagFilters.length > 0) {
@@ -551,6 +610,9 @@ window.addEventListener('resize', function() {
     if (!isMobileView && menuPanel.classList.contains('show')) {
         menuPanel.classList.remove('show');
     }
+    
+    // 重新渲染分类以适应窗口大小变化
+    renderCategories();
 });
 
 // 切换全选/取消全选
@@ -561,7 +623,12 @@ function toggleSelectAll() {
     visible = visible.filter(img => !img.isEmptyCategory);
     
     if (currentFilter !== 'all') {
-        visible = visible.filter(img => img.category === currentFilter);
+        if (currentFilter === '其他') {
+            // 选择所有没有分类的图片
+            visible = visible.filter(img => img.category === null || img.category === '');
+        } else {
+            visible = visible.filter(img => img.category === currentFilter);
+        }
         if (currentTagFilters.length > 0) {
             visible = visible.filter(img => {
                 if (!img.tags || img.tags.length === 0) return false;
@@ -1411,7 +1478,13 @@ function filterCategory(cat) {
     currentFilter = cat;
     // 重置标签筛选
     currentTagFilters = [];
-    document.getElementById('current-category').innerText = cat === 'all' ? '全部图片' : cat;
+    
+    // 正确处理分类名称显示
+    let displayCat = cat;
+    if (cat === 'all') {
+        displayCat = '全部图片';
+    }
+    document.getElementById('current-category').innerText = displayCat;
     
     // 更新"全部图片"按钮的选中状态
     const allBtn = document.getElementById('all-category-btn');
@@ -1471,8 +1544,17 @@ function renderCategoriesList() {
     const emptyCategoryRecords = allImages.filter(img => img.isEmptyCategory && img.name.startsWith('__EMPTY_IMAGE__')).map(img => img.category);
     const realCategories = allImages.filter(img => !img.isEmptyCategory).map(img => img.category);
     
-    // 合并所有分类并去重，包含空字符串（无分类）
-    const allMainCategories = [...new Set([...emptyCategoryRecords, ...realCategories])].filter(cat => cat !== undefined);
+    // 合并所有分类并去重，排除空字符串（无分类）
+    let allMainCategories = [...new Set([...emptyCategoryRecords, ...realCategories])].filter(cat => cat !== undefined && cat !== '' && cat !== '全部' && cat !== '其他');
+    
+    // 确保 "其他" 分类始终存在，如果没有则创建一个空的
+    if (!allMainCategories.includes('其他')) {
+        // 添加到数组末尾，确保它出现在列表底部
+        allMainCategories.push('其他');
+    }
+    
+    // 排序：普通分类按字母顺序排列，"其他"放在最后
+    allMainCategories.sort();
     
     const container = document.getElementById('categories-list');
     
@@ -1483,10 +1565,19 @@ function renderCategoriesList() {
     
     container.innerHTML = allMainCategories.map(cat => {
         // 计算该分类下的图片数量（空分类也计算）
-        const imageCount = allImages.filter(img => img.category === cat && !img.isEmptyCategory).length;
-        const displayName = cat || '无分类';
-        // 如果是"无分类"，不显示重命名按钮
-        const canRename = cat !== '';
+        let imageCount = 0;
+        if (cat === '其他') {
+            // 对于"其他"分类，计算所有没有分类的图片
+            imageCount = allImages.filter(img => (img.category === null || img.category === '') && !img.isEmptyCategory).length;
+        } else {
+            imageCount = allImages.filter(img => img.category === cat && !img.isEmptyCategory).length;
+        }
+        
+        const displayName = cat;
+        
+        // "全部"和"其他"分类不能被删除
+        const canDelete = cat !== '全部' && cat !== '其他';
+        const canRename = cat !== '' && cat !== '全部' && cat !== '其他';
         
         return `
             <div class="item-row">
@@ -1496,7 +1587,7 @@ function renderCategoriesList() {
                 </div>
                 <div class="item-actions">
                     ${canRename ? `<button class="action-btn rename-btn" data-type="category" data-name="${cat}" onclick="prepareRename('${cat}', 'category')">✏️ 重命名</button>` : ''}
-                    <button class="action-btn delete-btn" data-type="category" data-name="${cat || ''}" onclick="prepareDelete('${cat || ''}', 'category')">🗑️ 删除</button>
+                    ${canDelete ? `<button class="action-btn delete-btn" data-type="category" data-name="${cat || ''}" onclick="prepareDelete('${cat || ''}', 'category')">🗑️ 删除</button>` : `<button class="action-btn disabled-btn" disabled title="系统保留分类，不可删除">🔒 保护</button>`}
                 </div>
             </div>
         `;
@@ -1506,10 +1597,30 @@ function renderCategoriesList() {
 // 渲染标签列表
 function renderTagsListNew() {
     // 获取所有唯一的标签
-    const allTags = [...new Set(allImages
+    const allTagsArray = [...new Set(allImages
         .filter(img => img.tags && img.tags.length > 0)
         .flatMap(img => img.tags)
-    )].sort();
+    )];
+    
+    // 定义优先显示的标签
+    const priorityTags = ['PBT', 'PET', 'PBT+PET', 'PC', 'PA6', 'PA66'];
+    
+    // 对标签进行排序：优先标签在前，其余按字母顺序
+    const allTags = allTagsArray.sort((a, b) => {
+        const aIsPriority = priorityTags.includes(a);
+        const bIsPriority = priorityTags.includes(b);
+        
+        // 如果两者都是优先标签或都不是优先标签，按在priorityTags中的顺序或字母顺序排序
+        if (aIsPriority && bIsPriority) {
+            return priorityTags.indexOf(a) - priorityTags.indexOf(b);
+        } else if (aIsPriority && !bIsPriority) {
+            return -1; // a排在b前面
+        } else if (!aIsPriority && bIsPriority) {
+            return 1; // b排在a前面
+        } else {
+            return a.localeCompare(b); // 都不是优先标签时按字母顺序
+        }
+    });
     
     const container = document.getElementById('tags-list');
     
@@ -1656,6 +1767,12 @@ function setupDialogEvents() {
 
 // 添加分类
 async function addCategory(name) {
+    // 检查是否尝试添加受保护的分类（"全部"或"其他"）
+    if (name === '全部' || name === '其他') {
+        showToast(`${name} 是系统保留分类，不可添加`, 'error');
+        return;
+    }
+    
     // 检查是否已存在
     const existingCategories = [...new Set(allImages.map(img => img.category).filter(cat => cat))];
     if (existingCategories.includes(name)) {
@@ -1744,6 +1861,12 @@ function executeRename() {
 
 // 重命名分类
 async function renameCategory(oldName, newName) {
+    // 检查是否尝试重命名为受保护的分类（"全部"或"其他"）
+    if (newName === '全部' || newName === '其他') {
+        showToast(`${newName} 是系统保留分类，不可使用`, 'error');
+        return;
+    }
+    
     // 检查新名称是否已存在
     const existingCategories = [...new Set(allImages.map(img => img.category).filter(cat => cat))];
     if (existingCategories.includes(newName)) {
@@ -1822,6 +1945,12 @@ async function renameTagNew(oldName, newName) {
 
 // 准备删除
 function prepareDelete(name, type) {
+    // 检查是否尝试删除受保护的分类（"全部"或"其他"）
+    if (type === 'category' && (name === '全部' || name === '其他')) {
+        showToast(`${name} 是系统保留分类，不可删除`, 'error');
+        return;
+    }
+    
     deleteType = type;
     deleteName = name;
     
@@ -2162,13 +2291,88 @@ function handleDrop(e) {
         for (let i = 0; i < files.length; i++) {
             // 检查是否为图片文件
             if (files[i].type.startsWith('image/')) {
-                saveImage(files[i], currentFilter); // 使用当前分类
+                // 使用当前分类和当前选中的标签
+                saveImageWithCurrentTags(files[i], currentFilter, currentTagFilters);
             }
         }
     }
     
     // 移除高亮
     unhighlight(e);
+}
+
+// 保存图片并附带当前标签
+async function saveImageWithCurrentTags(file, category = '', tags = []) {
+    // 等待图片列表加载完成
+    await waitForImagesLoaded();
+    
+    // 检查是否存在相同名称的图片
+    if (checkDuplicateImage(file.name)) {
+        // 如果存在相同名称的图片，询问用户是否覆盖
+        if (confirm(`文件 "${file.name}" 已存在，是否覆盖？`)) {
+            // 执行覆盖操作
+            updateExistingImageWithTags(file, category, tags);
+        } else {
+            // 用户选择不覆盖，显示提示信息
+            showToast(`跳过上传：文件 "${file.name}" 已存在`, 'warning');
+        }
+    } else {
+        // 文件名不存在，直接保存
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imageData = {
+                name: file.name,
+                category: category || '',  // 使用传入的分类，或者默认为空
+                tags: [...tags], // 使用传入的标签
+                data: e.target.result,
+                date: new Date().toLocaleString()
+            };
+            const transaction = db.transaction([STORE_NAME], "readwrite");
+            transaction.objectStore(STORE_NAME).add(imageData);
+            transaction.oncomplete = () => loadImages();
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// 更新已存在的图片并附带标签
+async function updateExistingImageWithTags(file, category = '', tags = []) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const newData = e.target.result;
+        
+        // 开始事务以查找并更新现有图片
+        const transaction = db.transaction([STORE_NAME], "readwrite");
+        const store = transaction.objectStore(STORE_NAME);
+        
+        // 查找同名图片
+        const request = store.openCursor();
+        request.onsuccess = function(event) {
+            const cursor = event.target.result;
+            if (cursor) {
+                const item = cursor.value;
+                if (item.name === file.name) {
+                    // 更新图片数据
+                    item.data = newData;
+                    item.category = category || item.category; // 如果提供了新分类，则更新分类
+                    item.tags = [...tags]; // 更新标签
+                    item.date = new Date().toLocaleString(); // 更新日期
+                    
+                    // 更新数据库中的记录
+                    cursor.update(item);
+                    
+                    // 完成后重新加载数据
+                    transaction.oncomplete = () => {
+                        loadImages();
+                        showToast(`图片 "${file.name}" 已更新`, 'success');
+                    };
+                    return;
+                }
+                cursor.continue();
+            }
+        };
+    };
+    reader.readAsDataURL(file);
 }
 
 // 对比功能 - 分页和布局管理
@@ -2444,14 +2648,30 @@ function openDetail(id, event) {
     // 填充分类选项
     const categorySelect = document.getElementById('detail-category');
     
-    // 获取所有主分类
+    // 获取所有主分类（排除空分类）
     const allCategories = [...new Set(allImages.map(img => img.category).filter(cat => cat))];
-    categorySelect.innerHTML = allCategories.map(cat => 
-        `<option value="${cat}" ${cat === img.category ? 'selected' : ''}>${cat}</option>`
-    ).join('');
     
-    // 添加"无分类"选项
-    categorySelect.innerHTML = `<option value="" ${!img.category ? 'selected' : ''}>无分类</option>` + categorySelect.innerHTML;
+    // 确保"其他"分类始终存在
+    if (!allCategories.includes('其他')) {
+        allCategories.push('其他');
+    }
+    
+    // 排序分类列表，"其他"放在最后
+    allCategories.sort((a, b) => {
+        if (a === '其他') return 1;
+        if (b === '其他') return -1;
+        return a.localeCompare(b);
+    });
+    
+    // 生成选项列表，如果图片原来没有分类，将其归类为"其他"
+    let selectedCategory = img.category;
+    if (!img.category) {
+        selectedCategory = '其他';
+    }
+    
+    categorySelect.innerHTML = allCategories.map(cat => 
+        `<option value="${cat}" ${cat === selectedCategory ? 'selected' : ''}>${cat}</option>`
+    ).join('');
     
 
     
@@ -2461,8 +2681,28 @@ function openDetail(id, event) {
 
 // 渲染详情标签列表
 function renderDetailTags(tags) {
+    // 定义优先显示的标签
+    const priorityTags = ['PBT', 'PET', 'PBT+PET', 'PC', 'PA6', 'PA66'];
+    
+    // 对标签进行排序：优先标签在前，其余按字母顺序
+    const sortedTags = [...tags].sort((a, b) => {
+        const aIsPriority = priorityTags.includes(a);
+        const bIsPriority = priorityTags.includes(b);
+        
+        // 如果两者都是优先标签或都不是优先标签，按在priorityTags中的顺序或字母顺序排序
+        if (aIsPriority && bIsPriority) {
+            return priorityTags.indexOf(a) - priorityTags.indexOf(b);
+        } else if (aIsPriority && !bIsPriority) {
+            return -1; // a排在b前面
+        } else if (!aIsPriority && bIsPriority) {
+            return 1; // b排在a前面
+        } else {
+            return a.localeCompare(b); // 都不是优先标签时按字母顺序
+        }
+    });
+    
     const container = document.getElementById('detail-tags-container');
-    container.innerHTML = tags.map(tag => `
+    container.innerHTML = sortedTags.map(tag => `
         <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 6px; font-size: 12px; font-weight: 500;">
             ${tag}
             <button type="button" onclick="removeTagFromDetail('${tag}')" style="background: none; border: none; color: white; cursor: pointer; font-size: 14px; line-height: 1; padding: 0; margin-left: 4px;">&times;</button>

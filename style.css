@@ -82,7 +82,7 @@ body {
 /* 小屏幕下收缩侧边栏 */
 @media (max-width: 768px) {
     #sidebar {
-        width: 70px; /* 收缩宽度 */
+        width: 80px; /* 增加收缩宽度以容纳两个汉字 */
         padding: 16px 8px;
         overflow-x: hidden;
     }
@@ -97,12 +97,22 @@ body {
     }
     
     .nav-item {
-        padding: 12px 8px; /* 减少内边距 */
-        font-size: 12px; /* 减小字体 */
+        padding: 12px 4px; /* 调整内边距以适应更宽的侧边栏 */
+        font-size: 12px; /* 增大字体以提高可读性 */
+        flex-direction: column; /* 改为垂直布局 */
+        align-items: center; /* 居中对齐 */
+        justify-content: center; /* 居中对齐 */
+        text-align: center; /* 文字居中 */
+        height: 50px; /* 固定高度 */
     }
     
     .nav-item span:first-child {
-        display: none; /* 隐藏分类名称 */
+        display: block; /* 显示分类名称 */
+        white-space: nowrap; /* 不换行 */
+        overflow: visible; /* 显示完整文本，不再隐藏溢出 */
+        text-overflow: clip; /* 不显示省略号 */
+        max-width: 100%; /* 最大宽度 */
+        line-height: 1.2; /* 调整行高 */
     }
     
     .nav-item .stats {
@@ -376,6 +386,13 @@ header h2 {
         display: none;
     }
     
+    .responsive-menu-panel.show {
+        display: flex;
+    }
+}
+
+/* 在大屏幕上，当需要显示时使用 flex */
+@media (min-width: 769px) {
     .responsive-menu-panel.show {
         display: flex;
     }
