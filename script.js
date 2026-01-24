@@ -29,6 +29,8 @@ let currentModeFilter = 'ALL'; // 当前模式过滤器 ('DSC', 'TGA', 'ALL')
 let currentDetailId = null; // 当前编辑详情的图片ID
 let confirmAction = null; // 当前待执行的确认操作
 let confirmParams = null; // 确认操作的参数
+let deleteType = null; // 待删除的类型（category/tag）
+let deleteName = null; // 待删除的名称
 let dragState = { // 拖动状态
     isDragging: false,
     element: null,
@@ -604,7 +606,7 @@ function deleteSelected() {
     confirmAction = 'deleteSelected';
     confirmParams = { count: selectedIds.size };
     document.getElementById('confirm-message').innerText = `确定要删除选中的 ${selectedIds.size} 张图片吗？`;
-    document.getElementById('confirm-modal').style.display = 'flex';
+    document.getElementById('confirm-dialog').style.display = 'flex';
 }
 
 // 打印选中的图片
@@ -1149,10 +1151,17 @@ async function handleZipFile(file) {
         let importedFiles = 0;
         let skippedFiles = 0;
         
+        // 首先检查是否存在标签信息文件
+        let tagsInfo = null;
+        if (zipContent.files['tags.json']) {
+            const tagsJson = await zipContent.files['tags.json'].async('text');
+            tagsInfo = JSON.parse(tagsJson);
+        }
+        
         // 遍历ZIP中的所有文件
         for (const [filename, zipEntry] of Object.entries(zipContent.files)) {
-            // 忽略文件夹
-            if (zipEntry.dir) continue;
+            // 忽略文件夹和标签信息文件
+            if (zipEntry.dir || filename === 'tags.json') continue;
             
             totalFiles++;
             
@@ -1202,6 +1211,19 @@ async function handleZipFile(file) {
                 
                 // 使用现有的saveImage函数保存图片到指定分类
                 await saveImage(blob, category || 'all'); // 使用'all'表示默认分类
+                
+                // 如果存在标签信息，为新保存的图片添加标签
+                if (tagsInfo) {
+                    const tagInfo = tagsInfo.find(info => info.name === actualFilename);
+                    if (tagInfo && tagInfo.tags && tagInfo.tags.length > 0) {
+                        // 查找刚保存的图片
+                        const savedImage = allImages.find(img => img.name === actualFilename);
+                        if (savedImage) {
+                            // 更新图片的标签
+                            await updateImageTags(savedImage.id, tagInfo.tags);
+                        }
+                    }
+                }
                 
                 importedFiles++;
             }
@@ -1275,6 +1297,23 @@ async function exportAsZip(selectedImagesInfo, imageDataString) {
                 zip.file(`${category}/${removeFileExtension(img.name)}.${extension}`, arrayBuffer, { binary: true });
             }
         }
+        
+        // 创建标签信息文件
+        const tagsInfo = [];
+        for (const img of selectedImages) {
+            if (img.tags && img.tags.length > 0) {
+                tagsInfo.push({
+                    name: img.name,
+                    tags: img.tags
+                });
+            }
+        }
+        
+        // 如果有标签信息，创建tags.json文件
+        if (tagsInfo.length > 0) {
+            const tagsJson = JSON.stringify(tagsInfo, null, 2);
+            zip.file('tags.json', tagsJson);
+        }
 
         // 生成ZIP文件
         const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -1291,7 +1330,7 @@ async function exportAsZip(selectedImagesInfo, imageDataString) {
         // 释放URL对象
         URL.revokeObjectURL(url);
         
-        showToast(`成功导出 ${selectedImages.length} 张图片（按分类组织）`, 'success');
+        showToast(`成功导出 ${selectedImages.length} 张图片（按分类组织，包含标签信息）`, 'success');
     } catch (error) {
         console.error('导出失败:', error);
         showToast('导出失败，请重试', 'error');
@@ -1745,9 +1784,6 @@ async function renameTagNew(oldName, newName) {
 }
 
 // 准备删除
-let deleteType = null;
-let deleteName = null;
-
 function prepareDelete(name, type) {
     deleteType = type;
     deleteName = name;
@@ -1760,7 +1796,10 @@ function prepareDelete(name, type) {
 
 // 执行确认操作
 function executeConfirmAction() {
-    if (deleteType === 'category') {
+    if (confirmAction === 'deleteSelected') {
+        // 删除选中的图片
+        deleteSelectedImages();
+    } else if (deleteType === 'category') {
         deleteCategory(deleteName);
     } else if (deleteType === 'tag') {
         deleteTagNew(deleteName);
@@ -1795,6 +1834,66 @@ async function deleteCategory(name) {
             renderCategoryManagementContent();
             
             showToast(`分类 "${name || '无分类'}" 已删除`, 'success');
+            closeConfirmDialog();
+        }
+    };
+}
+
+// 更新图片标签
+async function updateImageTags(imageId, newTags) {
+    const transaction = db.transaction([STORE_NAME], "readwrite");
+    const objectStore = transaction.objectStore(STORE_NAME);
+    
+    objectStore.openCursor().onsuccess = function(event) {
+        const cursor = event.target.result;
+        if (cursor) {
+            const value = cursor.value;
+            if (value.id === imageId) {
+                value.tags = newTags;
+                cursor.update(value);
+                return;
+            }
+            cursor.continue();
+        }
+    };
+}
+
+// 删除选中的图片
+async function deleteSelectedImages() {
+    if (selectedIds.size === 0) {
+        showToast('没有选中的图片', 'warning');
+        closeConfirmDialog();
+        return;
+    }
+    
+    const transaction = db.transaction([STORE_NAME], "readwrite");
+    const objectStore = transaction.objectStore(STORE_NAME);
+    
+    // 将选中的ID转换为数组以便处理
+    const idsToDelete = Array.from(selectedIds);
+    let deletedCount = 0;
+    
+    // 遍历数据库中的所有记录，删除匹配的图片
+    objectStore.openCursor().onsuccess = async function(event) {
+        const cursor = event.target.result;
+        if (cursor) {
+            const value = cursor.value;
+            // 检查是否是选中的图片
+            if (idsToDelete.includes(value.id)) {
+                cursor.delete();
+                deletedCount++;
+            }
+            cursor.continue();
+        } else {
+            // 所有记录都已检查完毕
+            await loadImages(); // 重新加载数据
+            renderGallery(); // 刷新图片网格
+            renderCategories(); // 刷新侧边栏分类列表
+            
+            // 清空选中状态
+            selectedIds.clear();
+            
+            showToast(`已删除 ${deletedCount} 张图片`, 'success');
             closeConfirmDialog();
         }
     };
@@ -1855,6 +1954,9 @@ function closeConfirmDialog() {
 window.onload = function() {
     initDB().then(() => {
         loadImages();
+        
+        // 设置对话框事件监听器
+        setupDialogEvents();
         
         // 添加文件上传事件监听器
         const fileInput = document.getElementById('fileInput');
