@@ -2415,11 +2415,30 @@ function prevPage() {
 }
 
 // 键盘快捷键支持
+// 存储复制的图片
+let copiedImages = [];
+
 document.addEventListener('keydown', (e) => {
     const compareOverlay = document.getElementById('compare-overlay');
     const zoomOverlay = document.getElementById('zoom-overlay');
     const isCompareOpen = compareOverlay && compareOverlay.style.display === 'flex';
     const isZoomOpen = zoomOverlay && zoomOverlay.style.display === 'flex';
+
+    // 处理 Ctrl+C 复制选中的图片
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault(); // 阻止默认复制行为
+        
+        if (selectedIds.size > 0) {
+            // 获取选中的图片数据
+            copiedImages = allImages.filter(img => selectedIds.has(img.id));
+            
+            // 将选中的图片复制到系统剪贴板
+            copyImagesToClipboard(copiedImages);
+        } else {
+            showToast('请先选择要复制的图片', 'warning');
+        }
+        return;
+    }
 
     // 如果放大层打开，优先处理放大层的快捷键
     if (isZoomOpen) {
@@ -2454,6 +2473,246 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// 创建合成图片并复制到剪贴板
+async function createCompositeImageAndCopy(images) {
+    try {
+        // 创建canvas来合成图片
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 根据图片数量决定布局
+        const cols = Math.ceil(Math.sqrt(images.length));
+        const rows = Math.ceil(images.length / cols);
+        
+        // 预加载所有图片以获取尺寸信息
+        const imgPromises = images.map(imgData => {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => {
+                    // 如果图片加载失败，创建一个占位符
+                    const placeholder = new Image();
+                    placeholder.width = 100;
+                    placeholder.height = 100;
+                    resolve(placeholder);
+                };
+                img.src = imgData.data;
+            });
+        });
+        
+        const loadedImages = await Promise.all(imgPromises);
+        
+        // 设定每个图片格子的最小尺寸
+        const minCellWidth = 400;
+        const minCellHeight = 320; // 为文件名预留空间
+        
+        // 计算画布尺寸
+        canvas.width = cols * minCellWidth;
+        canvas.height = rows * minCellHeight;
+        
+        // 设置背景色
+        ctx.fillStyle = '#f5f5f5';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 绘制每张图片
+        for (let i = 0; i < loadedImages.length; i++) {
+            const row = Math.floor(i / cols);
+            const col = i % cols;
+            const x = col * minCellWidth;
+            const y = row * minCellHeight;
+            
+            const img = loadedImages[i];
+            
+            // 为图片预留的区域（不包括文件名区域）
+            const imgAreaX = x + 10;
+            const imgAreaY = y + 10;
+            const imgAreaWidth = minCellWidth - 20;
+            const imgAreaHeight = minCellHeight - 40; // 为文件名预留空间
+            
+            // 计算缩放比例，保持原始宽高比，适应分配的空间
+            const scaleX = imgAreaWidth / img.width;
+            const scaleY = imgAreaHeight / img.height;
+            const scale = Math.min(scaleX, scaleY); // 不限制最大尺寸，只要能适应空间即可
+            
+            const drawWidth = img.width * scale;
+            const drawHeight = img.height * scale;
+            
+            // 居中绘制
+            const offsetX = imgAreaX + (imgAreaWidth - drawWidth) / 2;
+            const offsetY = imgAreaY + (imgAreaHeight - drawHeight) / 2;
+            
+            // 绘制图片
+            ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+            
+            // 绘制边框
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + 5, y + 5, minCellWidth - 10, minCellHeight - 10);
+            
+            // 添加标题（文件名）
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'center';
+            
+            // 简化文件名以适应空间
+            const fileName = images[i].name.length > 25 ? 
+                images[i].name.substring(0, 22) + '...' : 
+                images[i].name;
+            
+            // 在底部居中绘制文件名
+            ctx.fillText(fileName, x + minCellWidth / 2, y + minCellHeight - 15);
+        }
+        
+        // 将canvas转换为blob并复制到剪贴板
+        canvas.toBlob(async (blob) => {
+            try {
+                const clipboardItem = new ClipboardItem({ [blob.type]: blob });
+                await navigator.clipboard.write([clipboardItem]);
+                showToast(`已将${images.length}张图片合成为一张并复制到剪贴板`, 'success');
+            } catch (err) {
+                console.error('复制合成图片到剪贴板失败:', err);
+                showToast('复制合成图片失败', 'error');
+            }
+        }, 'image/png');
+    } catch (err) {
+        console.error('创建合成图片失败:', err);
+        showToast('创建合成图片失败', 'error');
+    }
+}
+
+// 将图片数据复制到系统剪贴板
+async function copyImagesToClipboard(images) {
+    // 检查浏览器是否支持Clipboard API
+    if (!navigator.clipboard || !window.ClipboardItem) {
+        showToast('您的浏览器不支持图片复制功能，请使用最新版Chrome/Firefox/Edge浏览器', 'error');
+        return;
+    }
+    
+    try {
+        if (images.length === 1) {
+            // 如果只有一张图片，直接复制到剪贴板
+            const img = images[0];
+            const base64Data = img.data.split(',')[1];
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const mimeType = img.data.match(/:(.+);/)[1];
+            const blob = new Blob([byteArray], { type: mimeType });
+            
+            const clipboardItem = new ClipboardItem({ [blob.type]: blob });
+            await navigator.clipboard.write([clipboardItem]);
+            showToast(`已复制1张图片到剪贴板`, 'success');
+        } else {
+            // 如果有多张图片，让用户选择复制哪一张或合并复制
+            const result = prompt(`您选择了${images.length}张图片，当前仅支持一次复制一张图片到剪贴板。
+
+请选择操作:
+
+输入 '1-${images.length}' 选择特定图片
+输入 'first' 复制第一张
+输入 'last' 复制最后一张
+输入 'all' 创建合成图片（推荐）`);
+            
+            if (result === null) {
+                // 用户取消操作
+                return;
+            }
+            
+            if (result.toLowerCase() === 'all') {
+                // 创建合成图片
+                createCompositeImageAndCopy(images);
+                return;
+            }
+            
+            let index;
+            if (result.toLowerCase() === 'first') {
+                index = 0;
+            } else if (result.toLowerCase() === 'last') {
+                index = images.length - 1;
+            } else {
+                const num = parseInt(result);
+                if (isNaN(num) || num < 1 || num > images.length) {
+                    showToast('输入无效，请输入有效的图片编号', 'error');
+                    return;
+                }
+                index = num - 1;
+            }
+            
+            const imgToCopy = images[index];
+            const base64Data = imgToCopy.data.split(',')[1];
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const mimeType = imgToCopy.data.match(/:(.+);/)[1];
+            const blob = new Blob([byteArray], { type: mimeType });
+            
+            const clipboardItem = new ClipboardItem({ [blob.type]: blob });
+            await navigator.clipboard.write([clipboardItem]);
+            
+            showToast(`已复制第${index + 1}张图片到剪贴板`, 'success');
+        }
+    } catch (err) {
+        console.error('复制图片到剪贴板失败:', err);
+        showToast('复制失败，请确保浏览器支持此功能', 'error');
+    }
+}
+
+// 粘贴复制的图片到当前分类
+function pasteCopiedImages() {
+    if (copiedImages.length === 0) {
+        showToast('没有可粘贴的图片，请先复制图片', 'warning');
+        return;
+    }
+    
+    // 询问用户是否要将复制的图片添加到当前分类
+    const confirmMsg = `确定要将 ${copiedImages.length} 张复制的图片添加到"${currentFilter === 'all' ? '全部' : currentFilter}"分类吗？`;
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // 创建一个新的图片副本并保存到数据库
+    let processedCount = 0;
+    
+    copiedImages.forEach(img => {
+        // 为图片创建新的记录，使用当前分类和当前选中的标签
+        const newImageData = {
+            name: `COPY_${img.name}`,  // 添加前缀区分
+            category: currentFilter === 'all' ? img.category : currentFilter,  // 使用当前分类，如果是全部则保持原分类
+            tags: [...img.tags],  // 复制标签
+            data: img.data,  // 复制图片数据
+            date: new Date().toLocaleString()  // 更新日期
+        };
+        
+        // 保存到数据库
+        const transaction = db.transaction([STORE_NAME], "readwrite");
+        transaction.objectStore(STORE_NAME).add(newImageData);
+        
+        transaction.oncomplete = () => {
+            processedCount++;
+            if (processedCount === copiedImages.length) {
+                // 所有图片都处理完成后重新加载数据
+                loadImages();
+                showToast(`成功粘贴 ${copiedImages.length} 张图片`, 'success');
+            }
+        };
+        
+        transaction.onerror = () => {
+            processedCount++;
+            if (processedCount === copiedImages.length) {
+                loadImages();
+                showToast(`处理图片时出现错误`, 'error');
+            }
+        };
+    });
+}
 
 function renderComparePage() {
     const container = document.getElementById('compare-container');
