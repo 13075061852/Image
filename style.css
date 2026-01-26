@@ -378,7 +378,7 @@ header h2 {
 
 /* 在小屏幕上，当需要显示时使用 flex */
 .responsive-menu-panel.show {
-    display: flex !important;
+     display: flex !important;
 }
 
 @media (max-width: 768px) {

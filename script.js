@@ -383,7 +383,6 @@ function renderGallery() {
                       hasSuffix(img.name, 'TGA') ? 'TGA' : '';
         return `
         <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
-            <input type="checkbox" class="checkbox" ${selectedIds.has(img.id) ? 'checked' : ''}>
             ${suffix ? `<div class="mode-badge ${suffix.toLowerCase()}">${suffix}</div>` : ''}
             <img src="${img.data}" loading="lazy" draggable="false">
             <div class="img-info">
@@ -394,7 +393,7 @@ function renderGallery() {
                 </div>
             </div>
         </div>
-    `}).join('');
+    `;}).join('');
     updateUI();
 }
 
@@ -406,17 +405,13 @@ function toggleSelect(id) {
         selectedIds.add(id);
     }
     
-    // 更新单个卡片的选中状态 - 通过CSS类和复选框状态共同控制
+    // 更新单个卡片的选中状态 - 仅通过CSS类控制
     const card = document.querySelector(`.img-card[data-id="${id}"]`);
     if (card) {
         if (selectedIds.has(id)) {
             card.classList.add('selected');
-            const checkbox = card.querySelector('.checkbox');
-            if (checkbox) checkbox.checked = true;
         } else {
             card.classList.remove('selected');
-            const checkbox = card.querySelector('.checkbox');
-            if (checkbox) checkbox.checked = false;
         }
     }
     
@@ -459,12 +454,14 @@ function selectAllVisible() {
         }
     });
     
-    // 批量更新DOM - 只更新当前显示的卡片
-    const cards = document.querySelectorAll('.img-card');
-    cards.forEach(card => {
+    // 批量更新DOM - 更新所有可见图片的卡片状态
+    // 遍历所有图片卡片，检查是否在当前可见列表中，如果是则更新选中状态
+    const allCards = document.querySelectorAll('.img-card');
+    allCards.forEach(card => {
         const id = parseInt(card.getAttribute('data-id'));
-        const img = visible.find(img => img.id === id);
-        if (img) {
+        const isVisible = visible.some(img => img.id === id);
+        
+        if (isVisible) {
             card.classList.add('selected');
         }
     });
@@ -475,14 +472,14 @@ function selectAllVisible() {
 
 // 取消全选
 function clearSelection() {
-    // 批量清除选中状态
-    selectedIds.clear();
-    
     // 批量更新DOM - 清除所有选中状态的卡片
-    const selectedCards = document.querySelectorAll('.img-card.selected');
-    selectedCards.forEach(card => {
+    const allCards = document.querySelectorAll('.img-card');
+    allCards.forEach(card => {
         card.classList.remove('selected');
     });
+    
+    // 批量清除选中状态
+    selectedIds.clear();
     
     updateUI(); // 确保UI更新
     renderCategories(); // 重新渲染分类以更新统计信息
