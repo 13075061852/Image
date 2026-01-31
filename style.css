@@ -301,8 +301,9 @@ header {
     align-items: center;
     box-shadow: var(--card-shadow);
     position: relative;
-    overflow: hidden;
+    overflow: visible; /* 改为visible，确保下拉菜单可以显示在外面 */
     flex-shrink: 0; /* 防止头部被压缩 */
+    z-index: 100; /* 确保header在合适的层级 */
 }
 
 header::before {
@@ -332,12 +333,130 @@ header h2 {
     position: relative;
 }
 
+/* 搜索框容器 */
+.search-container {
+    position: relative;
+    display: inline-block;
+    width: 180px;
+}
+
+.search-container input[type="text"] {
+    width: 100%;
+    padding: 10px 16px 10px 40px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    background: var(--card);
+    color: var(--text);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px rgba(79, 70, 229, 0.1);
+    box-sizing: border-box;
+    height: 42px; /* 设置固定高度与按钮一致 */
+    line-height: 1;
+}
+
+.search-container input[type="text"]:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+    background: white;
+}
+
+.search-container::before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'/%3E%3C/svg%3E") no-repeat center;
+    background-size: contain;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* 排序下拉菜单样式 */
+.sort-select {
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px rgba(79, 70, 229, 0.1);
+    box-sizing: border-box;
+    min-width: 160px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7l3-3 3 3m0 6l-3 3-3-3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    padding-right: 40px;
+    height: 42px; /* 设置固定高度与按钮一致 */
+    line-height: 1;
+}
+
+.sort-select:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+    background: white;
+}
+
 /* 工具栏 */
 .toolbar { 
     display: flex; 
     gap: 8px; 
     align-items: center; 
     position: relative;
+    flex-wrap: wrap; /* 允许换行以适应小屏幕 */
+}
+
+/* 工具栏在较小屏幕上的优化 */
+@media (max-width: 1024px) {
+    .toolbar {
+        gap: 6px;
+    }
+    
+    .search-container {
+        min-width: 150px;
+    }
+    
+    .sort-select {
+        min-width: 140px;
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    .btn {
+        padding: 8px 12px;
+        font-size: 13px;
+        min-width: 70px;
+    }
+}
+
+@media (max-width: 768px) {
+    .toolbar {
+        gap: 4px;
+    }
+    
+    .search-container {
+        width: 120px;
+    }
+    
+    .sort-select {
+        min-width: 120px;
+        font-size: 12px;
+    }
+    
+    .btn {
+        padding: 7px 10px;
+        font-size: 12px;
+        min-width: 60px;
+    }
 }
 
 /* 响应式菜单按钮 */
@@ -358,6 +477,92 @@ header h2 {
     border-color: #94a3b8;
 }
 
+/* 下拉菜单样式 */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background: white;
+    min-width: 180px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    z-index: 2000; /* 设置足够高的z-index值 */
+    border-radius: 12px;
+    overflow: hidden;
+    top: 100%;
+    margin-top: 8px;
+    /* 确保下拉菜单在响应式菜单面板之上 */
+}
+
+.dropdown-content .btn {
+    width: 100%;
+    text-align: left;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    justify-content: flex-start;
+    padding-left: 16px;
+    min-height: 44px; /* 增加高度以提高可点击区域 */
+    padding: 12px 16px; /* 增加内边距 */
+    background: white;
+    color: #475569;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.dropdown-content .btn:hover {
+    background: #f8fafc;
+    color: #1e293b;
+    padding-left: 20px; /* 悬停时向右移动一点，提供视觉反馈 */
+}
+
+.dropdown-content .btn:last-child {
+    border-bottom: none;
+}
+
+.dropdown-content .btn i, .dropdown-content .btn span {
+    margin-right: 10px; /* 为图标留出空间 */
+}
+
+.dropdown-content.show {
+    display: block;
+}
+
+.btn-more {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    color: #475569;
+    min-width: 60px;
+    border: 1px solid #cbd5e1;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.2);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    min-height: 42px; /* 与其他按钮保持一致的高度 */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
+}
+
+.btn-more:hover {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    border-color: #94a3b8;
+    box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+}
+
 /* 响应式菜单面板 */
 .responsive-menu-panel {
     display: none;
@@ -368,7 +573,7 @@ header h2 {
     border: 1px solid var(--border);
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    z-index: 100;
+    z-index: 1500; /* 调整z-index使其低于下拉菜单但高于其他内容 */
     min-width: 180px;
     flex-direction: column;
     gap: 4px;
@@ -404,17 +609,47 @@ header h2 {
     margin: 0;
     display: flex;
     text-align: left;
+    min-height: 42px; /* 与工具栏按钮高度一致 */
+    padding: 10px 16px; /* 与工具栏按钮内边距一致 */
 }
 
 /* 响应式设计：当屏幕宽度小于一定值时，隐藏工具栏按钮，显示菜单按钮 */
 @media (max-width: 768px) {
-    .toolbar .btn:not(.menu-toggle-btn) {
+    .toolbar .btn:not(.menu-toggle-btn):not(.btn-more) {
+        display: none;
+    }
+    
+    .toolbar .btn-more {
         display: none;
     }
     
     .toolbar .menu-toggle-btn {
         display: flex;
         align-items: center;
+    }
+    
+    /* 在小屏幕上也隐藏搜索框和排序下拉菜单，它们会移到响应式菜单面板中 */
+    .search-container,
+    .sort-select {
+        display: none;
+    }
+}
+
+/* 默认隐藏移动端全选按钮，在大屏幕上不需要 */
+.mobile-select-btn {
+    display: none;
+}
+
+/* 在中等屏幕上，只隐藏部分按钮 */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .toolbar .btn:not(.menu-toggle-btn):not(.btn-more):not(.btn-secondary):not(.btn-primary) {
+        display: none;
+    }
+    
+    .dropdown-content .btn {
+        font-size: 12px;
+        min-height: 40px; /* 在中等屏幕上稍微调整高度 */
+        padding: 8px 12px;
     }
 }
 

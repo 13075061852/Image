@@ -101,6 +101,7 @@ async function loadImages() {
         allImages = request.result;
         renderCategories();
         renderGallery();
+        updateUI(); // 更新UI以确保按钮文本正确
     };
 }
 
@@ -486,58 +487,68 @@ function clearSelection() {
 }
 
 function updateUI() {
-    // 更新全选按钮文本
+    // 计算当前可见的图片数量和选中数量（供整个函数使用）
+    let visible = allImages;
+    // 过滤掉空分类记录
+    visible = visible.filter(img => !img.isEmptyCategory);
+    
+    if (currentFilter !== 'all') {
+        if (currentFilter === '其他') {
+            // 计算所有没有分类的图片以及明确分类为"其他"的图片
+            visible = visible.filter(img => img.category === null || img.category === '' || img.category === '其他');
+        } else {
+            visible = visible.filter(img => img.category === currentFilter);
+        }
+    }
+    
+    if (currentTagFilters.length > 0) {
+        visible = visible.filter(img => {
+            if (!img.tags || img.tags.length === 0) return false;
+            return currentTagFilters.every(tag => img.tags.includes(tag));
+        });
+    }
+    
+    // 应用模式过滤
+    if (currentModeFilter && currentModeFilter !== 'ALL') {
+        visible = visible.filter(img => hasSuffix(img.name, currentModeFilter));
+    }
+    
+    const visibleCount = visible.filter(img => img.id != null).length;
+    
+    // 计算当前模式下实际选中的图片数量（即同时满足过滤条件且被选中的图片）
+    const selectedVisibleCount = visible.filter(img => selectedIds.has(img.id)).length;
+    
+    // 更新全选按钮文本，保留✓符号
     const toggleBtn = document.getElementById('toggle-select-btn');
     if (toggleBtn) {
-        // 计算当前可见的图片数量
-        let visible = allImages;
-        // 过滤掉空分类记录
-        visible = visible.filter(img => !img.isEmptyCategory);
-        
-        if (currentFilter !== 'all') {
-            if (currentFilter === '其他') {
-                // 计算所有没有分类的图片以及明确分类为"其他"的图片
-                visible = visible.filter(img => img.category === null || img.category === '' || img.category === '其他');
-            } else {
-                visible = visible.filter(img => img.category === currentFilter);
-            }
-        }
-        
-        if (currentTagFilters.length > 0) {
-            visible = visible.filter(img => {
-                if (!img.tags || img.tags.length === 0) return false;
-                return currentTagFilters.every(tag => img.tags.includes(tag));
-            });
-        }
-        
-        // 应用模式过滤
-        if (currentModeFilter && currentModeFilter !== 'ALL') {
-            visible = visible.filter(img => hasSuffix(img.name, currentModeFilter));
-        }
-        
-        const visibleCount = visible.filter(img => img.id != null).length;
-        
-        // 计算当前模式下实际选中的图片数量（即同时满足过滤条件且被选中的图片）
-        const selectedVisibleCount = visible.filter(img => selectedIds.has(img.id)).length;
-        
         // 如果当前模式下选中的图片数量等于当前模式下可见的图片数量，显示"取消全选"，否则显示"全选"
-        if (selectedVisibleCount === visibleCount && visibleCount > 0) {
-            toggleBtn.innerText = '取消全选';
-        } else {
-            toggleBtn.innerText = '全选';
-        }
+        const buttonText = selectedVisibleCount === visibleCount && visibleCount > 0 ? '✓ 取消全选' : '✓ 全选';
+        toggleBtn.innerText = buttonText;
     }
     
-    // 更新模式切换按钮文本
+    // 更新移动设备全选按钮文本（响应式菜单面板中的），保留✓符号
+    const mobileToggleBtn = document.getElementById('mobile-toggle-select-btn');
+    if (mobileToggleBtn) {
+        const buttonText = selectedVisibleCount === visibleCount && visibleCount > 0 ? '✓ 取消全选' : '✓ 全选';
+        mobileToggleBtn.innerText = buttonText;
+    }
+    
+
+    
+    // 更新模式切换按钮文本，保留图标
     const modeToggleBtn = document.getElementById('mode-toggle-btn');
     if (modeToggleBtn) {
-        modeToggleBtn.innerText = currentModeFilter;
+        console.log('Updating desktop mode toggle button, text:', currentModeFilter); // 调试日志
+        const icon = '📊'; // 保留原始图标
+        modeToggleBtn.innerHTML = `${icon} ${currentModeFilter}`;
     }
     
-    // 更新移动设备模式切换按钮文本
+    // 更新移动设备模式切换按钮文本，保留图标
     const mobileModeToggleBtn = document.getElementById('mobile-mode-toggle-btn');
     if (mobileModeToggleBtn) {
-        mobileModeToggleBtn.innerText = currentModeFilter;
+        console.log('Updating mobile mode toggle button, text:', currentModeFilter); // 调试日志
+        const icon = '📊'; // 保留原始图标
+        mobileModeToggleBtn.innerHTML = `${icon} ${currentModeFilter}`;
     }
     
     // 更新"全部"分类的统计信息
@@ -546,6 +557,8 @@ function updateUI() {
 
 // 切换模式过滤器
 function toggleModeFilter() {
+    console.log('toggleModeFilter called, currentModeFilter:', currentModeFilter); // 调试日志
+    
     if (currentModeFilter === 'DSC') {
         currentModeFilter = 'TGA';
     } else if (currentModeFilter === 'TGA') {
@@ -553,6 +566,9 @@ function toggleModeFilter() {
     } else { // ALL 或其他情况
         currentModeFilter = 'DSC';
     }
+    
+    console.log('After toggle, currentModeFilter is now:', currentModeFilter); // 调试日志
+    
     renderGallery();
     updateUI();
 }
@@ -572,6 +588,13 @@ function toggleResponsiveMenu() {
 // 处理菜单切换事件，同时在控制台打印1
 function handleMenuToggle(event) {
     console.log(1);
+    
+    // 关闭下拉菜单（如果打开）
+    const dropdownContent = document.querySelector('.dropdown-content');
+    if (dropdownContent) {
+        dropdownContent.classList.remove('show');
+    }
+    
     toggleResponsiveMenu();
     // 阻止事件冒泡，防止立即被关闭
     event.stopPropagation();
@@ -2142,6 +2165,73 @@ function closeConfirmDialog() {
     }
 }
 
+// 处理下拉菜单
+document.addEventListener('click', function(event) {
+    const dropdown = document.querySelector('.dropdown');
+    const dropdownContent = document.querySelector('.dropdown-content');
+    const dropdownButton = document.querySelector('.btn-more');
+    const responsiveMenu = document.getElementById('responsive-menu-panel');
+    
+    // 检查点击是否在下拉菜单内部
+    if (dropdown && !dropdown.contains(event.target)) {
+        // 如果点击在下拉菜单外部，则关闭下拉菜单
+        if (dropdownContent) {
+            dropdownContent.classList.remove('show');
+        }
+    }
+    
+    // 如果点击在下拉菜单外部，同时关闭响应式菜单面板
+    if (responsiveMenu && !responsiveMenu.contains(event.target) && 
+        !document.querySelector('.menu-toggle-btn').contains(event.target)) {
+        responsiveMenu.classList.remove('show');
+    }
+});
+
+// 点击更多按钮时切换下拉菜单
+document.addEventListener('DOMContentLoaded', function() {
+    const moreButton = document.querySelector('.btn-more');
+    if (moreButton) {
+        moreButton.addEventListener('click', function(event) {
+            event.stopPropagation(); // 阻止事件冒泡
+            
+            // 关闭响应式菜单面板（如果打开）
+            const responsiveMenu = document.getElementById('responsive-menu-panel');
+            if (responsiveMenu) {
+                responsiveMenu.classList.remove('show');
+            }
+            
+            const dropdownContent = document.querySelector('.dropdown-content');
+            if (dropdownContent) {
+                dropdownContent.classList.toggle('show');
+            }
+        });
+    }
+});
+
+// 在小屏幕上将搜索和排序也添加到响应式菜单中
+function updateResponsiveMenuForMobile() {
+    const responsiveMenu = document.querySelector('.responsive-menu-panel');
+    const mobileContainer = document.querySelector('.mobile-search-sort-container');
+    if (!responsiveMenu || !mobileContainer) return;
+    
+    // 检查是否是小屏幕
+    if (window.innerWidth <= 768) {
+        // 显示移动搜索和排序容器
+        mobileContainer.style.display = 'block';
+    } else {
+        // 在大屏幕上，隐藏移动搜索和排序容器
+        mobileContainer.style.display = 'none';
+    }
+}
+
+
+
+// 监听窗口大小变化
+window.addEventListener('resize', updateResponsiveMenuForMobile);
+
+// 页面加载完成后更新响应式菜单
+document.addEventListener('DOMContentLoaded', updateResponsiveMenuForMobile);
+
 // 页面加载完成后初始化
 window.onload = function() {
     initDB().then(() => {
@@ -3027,6 +3117,169 @@ function saveDetail() {
     transaction.onerror = () => {
         showToast('保存失败！', 'error');
     };
+}
+
+// 搜索功能
+function performSearch() {
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    
+    // 应用搜索过滤
+    let filtered = allImages;
+    
+    // 过滤掉空分类记录
+    filtered = filtered.filter(img => !img.isEmptyCategory);
+    
+    if (currentFilter !== 'all') {
+        if (currentFilter === '其他') {
+            // 显示所有没有分类的图片以及明确分类为"其他"的图片
+            filtered = filtered.filter(img => img.category === null || img.category === '' || img.category === '其他');
+        } else {
+            filtered = filtered.filter(img => img.category === currentFilter);
+        }
+    }
+    
+    // 如果设置了标签过滤（支持多选）
+    if (currentTagFilters.length > 0) {
+        filtered = filtered.filter(img => {
+            if (!img.tags || img.tags.length === 0) return false;
+            // 图片必须包含所有选中的标签
+            return currentTagFilters.every(tag => img.tags.includes(tag));
+        });
+    }
+    
+    // 应用模式过滤
+    if (currentModeFilter && currentModeFilter !== 'ALL') {
+        filtered = filtered.filter(img => hasSuffix(img.name, currentModeFilter));
+    }
+    
+    // 最后应用搜索过滤
+    if (searchTerm) {
+        filtered = filtered.filter(img => {
+            // 检查图片名称、分类或标签是否包含搜索词
+            const nameMatch = removeFileExtension(img.name).toLowerCase().includes(searchTerm);
+            const categoryMatch = (img.category || '').toLowerCase().includes(searchTerm);
+            const tagsMatch = img.tags && img.tags.some(tag => tag.toLowerCase().includes(searchTerm));
+            
+            return nameMatch || categoryMatch || tagsMatch;
+        });
+    }
+    
+    // 渲染过滤后的结果
+    const container = document.getElementById('gallery');
+    container.innerHTML = filtered.map(img => {
+        const tagsDisplay = img.tags && img.tags.length > 0 ? img.tags.join(', ') : '无标签';
+        const categoryDisplay = img.category ? img.category : '其他';
+        // 检测图片名称是否包含DSC或TGA后缀
+        const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' : 
+                      hasSuffix(img.name, 'TGA') ? 'TGA' : '';
+        return `
+        <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
+            ${suffix ? `<div class="mode-badge ${suffix.toLowerCase()}">${suffix}</div>` : ''}
+            <img src="${img.data}" loading="lazy" draggable="false">
+            <div class="img-info">
+                <strong>${removeFileExtension(img.name)}</strong>
+                <small>${categoryDisplay} | ${img.date}</small>
+                <div class="img-tags">
+                    ${(img.tags && img.tags.length > 0) ? img.tags.map(tag => `<span class="tag-badge" style="background-color: ${getTagColor(tag)}">${tag}</span>`).join(' ') : ''}
+                </div>
+            </div>
+        </div>
+    `;}).join('');
+    
+    updateUI();
+    renderCategories(); // 更新统计信息
+}
+
+// 排序功能
+function performSort() {
+    const sortValue = document.getElementById('sort-select').value;
+    
+    // 获取当前过滤后的图片列表
+    let filtered = allImages;
+    
+    // 过滤掉空分类记录
+    filtered = filtered.filter(img => !img.isEmptyCategory);
+    
+    if (currentFilter !== 'all') {
+        if (currentFilter === '其他') {
+            // 显示所有没有分类的图片以及明确分类为"其他"的图片
+            filtered = filtered.filter(img => img.category === null || img.category === '' || img.category === '其他');
+        } else {
+            filtered = filtered.filter(img => img.category === currentFilter);
+        }
+    }
+    
+    // 如果设置了标签过滤（支持多选）
+    if (currentTagFilters.length > 0) {
+        filtered = filtered.filter(img => {
+            if (!img.tags || img.tags.length === 0) return false;
+            // 图片必须包含所有选中的标签
+            return currentTagFilters.every(tag => img.tags.includes(tag));
+        });
+    }
+    
+    // 应用模式过滤
+    if (currentModeFilter && currentModeFilter !== 'ALL') {
+        filtered = filtered.filter(img => hasSuffix(img.name, currentModeFilter));
+    }
+    
+    // 应用搜索过滤
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    if (searchTerm) {
+        filtered = filtered.filter(img => {
+            // 检查图片名称、分类或标签是否包含搜索词
+            const nameMatch = removeFileExtension(img.name).toLowerCase().includes(searchTerm);
+            const categoryMatch = (img.category || '').toLowerCase().includes(searchTerm);
+            const tagsMatch = img.tags && img.tags.some(tag => tag.toLowerCase().includes(searchTerm));
+            
+            return nameMatch || categoryMatch || tagsMatch;
+        });
+    }
+    
+    // 根据选择的排序方式进行排序
+    filtered.sort((a, b) => {
+        switch(sortValue) {
+            case 'date-desc': // 日期 (最新优先)
+                return new Date(b.date) - new Date(a.date);
+            case 'date-asc': // 日期 (最早优先)
+                return new Date(a.date) - new Date(b.date);
+            case 'name-asc': // 名称 (A-Z)
+                return removeFileExtension(a.name).localeCompare(removeFileExtension(b.name));
+            case 'name-desc': // 名称 (Z-A)
+                return removeFileExtension(b.name).localeCompare(removeFileExtension(a.name));
+            case 'size-desc': // 大小 (大到小) - 这里我们基于文件名长度简单模拟大小
+                return b.name.length - a.name.length;
+            case 'size-asc': // 大小 (小到大) - 这里我们基于文件名长度简单模拟大小
+                return a.name.length - b.name.length;
+            default:
+                return new Date(b.date) - new Date(a.date); // 默认按日期最新优先
+        }
+    });
+    
+    // 渲染排序后的结果
+    const container = document.getElementById('gallery');
+    container.innerHTML = filtered.map(img => {
+        const tagsDisplay = img.tags && img.tags.length > 0 ? img.tags.join(', ') : '无标签';
+        const categoryDisplay = img.category ? img.category : '其他';
+        // 检测图片名称是否包含DSC或TGA后缀
+        const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' : 
+                      hasSuffix(img.name, 'TGA') ? 'TGA' : '';
+        return `
+        <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
+            ${suffix ? `<div class="mode-badge ${suffix.toLowerCase()}">${suffix}</div>` : ''}
+            <img src="${img.data}" loading="lazy" draggable="false">
+            <div class="img-info">
+                <strong>${removeFileExtension(img.name)}</strong>
+                <small>${categoryDisplay} | ${img.date}</small>
+                <div class="img-tags">
+                    ${(img.tags && img.tags.length > 0) ? img.tags.map(tag => `<span class="tag-badge" style="background-color: ${getTagColor(tag)}">${tag}</span>`).join(' ') : ''}
+                </div>
+            </div>
+        </div>
+    `;}).join('');
+    
+    updateUI();
+    renderCategories(); // 更新统计信息
 }
 
 function closeDetail() {

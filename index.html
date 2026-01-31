@@ -21,16 +21,34 @@
     <header>
         <h2 id="current-category">全部图片</h2>
         <div class="toolbar">
+            <!-- 搜索框 -->
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="名称、标签、分类" oninput="performSearch()">
+            </div>
+            <!-- 排序下拉菜单 -->
+            <select id="sort-select" onchange="performSort()" class="sort-select">
+                <option value="date-desc">日期 (最新)</option>
+                <option value="date-asc">日期 (最早)</option>
+                <option value="name-asc">名称 (A-Z)</option>
+                <option value="name-desc">名称 (Z-A)</option>
+                <option value="size-desc">大小 (大到小)</option>
+                <option value="size-asc">大小 (小到大)</option>
+            </select>
             <!-- 菜单栏 -->
             <button class="btn btn-secondary" onclick="toggleSelectAll()" id="toggle-select-btn">✓ 全选</button>
-            <button class="btn btn-primary" onclick="toggleModeFilter()" id="mode-toggle-btn">📊 TGA</button>
-            <button class="btn btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
-            <button class="btn btn-compare" onclick="openCompare()">🔍 对比分析</button>
-            <button class="btn btn-primary" onclick="showCategoryManagementModal()" id="manage-cat-btn">📁 分类管理</button>
-            <button class="btn btn-print" onclick="printSelected()">🖨️ 打印选中</button>
-            <button class="btn btn-export" onclick="exportSelected()">📤 导出选中</button>
-            <button class="btn btn-import" onclick="showImportDialog()">📥 导入数据</button>
-            
+            <button class="btn btn-primary" onclick="toggleModeFilter()" id="mode-toggle-btn">📊 ALL</button>
+            <div class="dropdown">
+                <button class="btn btn-more">⋮ 更多</button>
+                <div class="dropdown-content">
+                    <button class="btn btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
+                    <button class="btn btn-compare" onclick="openCompare()">🔍 对比分析</button>
+                    <button class="btn btn-primary" onclick="showCategoryManagementModal()" id="manage-cat-btn">📁 分类管理</button>
+                    <button class="btn btn-print" onclick="printSelected()">🖨️ 打印选中</button>
+                    <button class="btn btn-export" onclick="exportSelected()">📤 导出选中</button>
+                    <button class="btn btn-import" onclick="showImportDialog()">📥 导入数据</button>
+                </div>
+            </div>
+                    
             <!-- 响应式菜单按钮，屏幕窄时显示 -->
             <button class="menu-toggle-btn" onclick="handleMenuToggle(event)">
                 <span class="menu-icon">☰</span>
@@ -40,7 +58,7 @@
         <!-- 响应式菜单面板 -->
         <div class="responsive-menu-panel" id="responsive-menu-panel">
             <button class="btn btn-secondary" onclick="toggleSelectAll()" id="mobile-toggle-select-btn">✓ 全选</button>
-            <button class="btn btn-primary" onclick="toggleModeFilter()" id="mobile-mode-toggle-btn">📊 DSC</button>
+            <button class="btn btn-primary" onclick="toggleModeFilter()" id="mobile-mode-toggle-btn">📊 ALL</button>
             <button class="btn btn-compare" onclick="openCompare()">🔍 对比分析</button>
             <button class="btn btn-print" onclick="printSelected()">🖨️ 打印选中</button>
             <button class="btn btn-console" onclick="console.log(1)">🔢 控制台打印1</button>
