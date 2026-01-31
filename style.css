@@ -628,10 +628,36 @@ header h2 {
         align-items: center;
     }
     
-    /* 在小屏幕上也隐藏搜索框和排序下拉菜单，它们会移到响应式菜单面板中 */
-    .search-container,
+    /* 在小屏幕上隐藏排序下拉菜单，但保留搜索框可见 */
     .sort-select {
         display: none;
+    }
+    
+    /* 搜索框在小屏幕模式下保持可见，与菜单按钮同行显示 */
+    .search-container {
+        display: inline-block !important;
+        margin-bottom: 0;
+        margin-right: 8px;
+        width: calc(100% - 60px); /* 减去菜单按钮的宽度 */
+        vertical-align: top;
+    }
+    
+    .search-container input {
+        width: 100%;
+    }
+    
+    /* 确保工具栏容器支持内联元素 */
+    .toolbar {
+        display: flex;
+        align-items: center;
+        flex-wrap: nowrap;
+    }
+    
+    /* 菜单按钮与搜索框同行 */
+    .menu-toggle-btn {
+        display: inline-flex !important;
+        margin-left: 8px;
+        vertical-align: top;
     }
 }
 
