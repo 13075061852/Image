@@ -1,11 +1,37 @@
 /**
- * 数据库逻辑 (IndexedDB)
- * 用于存储大容量图片数据，绕过 LocalStorage 的 5MB 限制
+ * 图片管理器（纯前端单页）主逻辑文件
+ *
+ * ## 你可以把它当成 6 个子模块
+ * - **数据层（IndexedDB）**：图片/元数据的持久化读写，解决 LocalStorage 容量限制。
+ * - **状态层（内存状态）**：`allImages`、`selectedIds`、筛选/排序/模式等 UI 状态。
+ * - **渲染层（DOM 渲染）**：侧边栏分类、图库网格、详情弹窗、对比/缩放视图等。
+ * - **交互层（事件与快捷键）**：选择、拖拽、批量操作、响应式菜单等。
+ * - **导入导出/打印**：Zip 导出、数据导入、打印选中等工具功能。
+ * - **AI 分析（火山方舟/豆包）**：图片分析与对话。支持 Responses API 的流式输出，且对部分 `ep-` 端点做兼容兜底。
+ *
+ * ## 关键约束与约定（很重要）
+ * - **IndexedDB 是真实数据源**：不要直接修改 `allImages` 后就以为持久化了，必须走对应的 DB 写入逻辑。
+ * - **AI 端点兼容性**：
+ *   - 官方模型（如 `doubao-2.0` / `Doubao-Seed-2.0-pro`）优先走 **Responses + stream**，实现“打字机”效果。
+ *   - 部分 `ep-xxxx` 端点可能底层映射到不支持 Responses 的路由模型（会 403），因此对 `ep-` 端点在部分流程中会降级到非流式或改走其它路径。
+ * - **输出展示**：AI 输出会先转为“结构化 HTML”（段落/列表/标题），再由 CSS 负责层级视觉区分。
+ */
+
+/**
+ * =========================
+ * 1) 数据层：IndexedDB
+ * =========================
  */
 let db;
 const DB_NAME = "ImageManagerDB";
 const STORE_NAME = "images";
 
+/**
+ * 初始化 IndexedDB。
+ * - 第一次运行会创建 object store：`images`（自增 id）
+ * - 成功后会把 `db` 设为全局连接句柄
+ * @returns {Promise<void>}
+ */
 const initDB = () => {
     return new Promise((resolve) => {
         const request = indexedDB.open(DB_NAME, 1);
@@ -20,7 +46,12 @@ const initDB = () => {
     });
 };
 
-// 状态管理
+/**
+ * =========================
+ * 2) 状态层：运行时状态
+ * =========================
+ * 说明：这部分变量驱动 UI 呈现，但“最终真相”仍应以 IndexedDB 为准。
+ */
 let allImages = [];
 let selectedIds = new Set();
 let currentFilter = 'all';
@@ -41,7 +72,18 @@ let dragState = { // 拖动状态
     initialY: 0
 };
 
-// 根据标签生成颜色
+/**
+ * =========================
+ * 3) 纯工具函数：格式/颜色/文本等
+ * =========================
+ */
+
+/**
+ * 根据标签名生成稳定的颜色（同名标签同色）。
+ * 这里使用简单 hash → hue 的方式，固定饱和度/亮度，仅变化色相。
+ * @param {string} tag
+ * @returns {string} CSS hsl() 颜色字符串
+ */
 function getTagColor(tag) {
     // 创建一个简单的哈希函数来为每个标签生成一致的颜色
     let hash = 0;
@@ -54,18 +96,32 @@ function getTagColor(tag) {
     return `hsl(${hue}, 70%, 50%)`;
 }
 
-// 去除文件扩展名的辅助函数
+/**
+ * 去除文件扩展名（仅移除最后一个 .xxx）。
+ * @param {string} name
+ * @returns {string}
+ */
 function removeFileExtension(name) {
     return name.replace(/\.[^/.]+$/, "");
 }
 
-// 检查图片名称是否包含指定后缀的函数
+/**
+ * 判断“去扩展名后的文件名”是否以某后缀结尾（不区分大小写）。
+ * 用于模式识别（例如 DSC/TGA 标记）。
+ * @param {string} name
+ * @param {string} suffix
+ * @returns {boolean}
+ */
 function hasSuffix(name, suffix) {
     const baseName = removeFileExtension(name);
     return baseName.toUpperCase().endsWith(suffix.toUpperCase());
 }
 
-// Toast 通知函数
+/**
+ * 轻提示（Toast）。
+ * @param {string} message
+ * @param {'info'|'success'|'error'|'warning'} [type='info']
+ */
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
@@ -92,7 +148,11 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
-// 加载数据
+/**
+ * 从 IndexedDB 加载全部图片到内存，并触发 UI 渲染。
+ * 注意：这是“读模型”刷新入口，调用后会覆盖 `allImages`。
+ * @returns {Promise<void>}
+ */
 async function loadImages() {
     const transaction = db.transaction([STORE_NAME], "readonly");
     const store = transaction.objectStore(STORE_NAME);
@@ -105,12 +165,20 @@ async function loadImages() {
     };
 }
 
-// 检查是否存在相同名称的图片
+/**
+ * 判断是否存在同名图片（用于上传前去重/提示）。
+ * @param {string} fileName
+ * @returns {boolean}
+ */
 function checkDuplicateImage(fileName) {
     return allImages.some(img => img.name === fileName);
 }
 
-// 等待图片列表加载完成
+/**
+ * 等待图片加载完成的简易轮询。
+ * 适用于：某些逻辑必须在 `allImages` 填充后才能继续。
+ * @returns {Promise<void>}
+ */
 function waitForImagesLoaded() {
     return new Promise((resolve) => {
         if (allImages.length > 0) {
@@ -1547,10 +1615,9 @@ function showCategoryManagementModal() {
 // 关闭分类管理模态窗口
 function closeCategoryManagementModal() {
     document.getElementById('category-management-modal').style.display = 'none';
-    
-    // 刷新主界面分类列表以确保同步
-    renderCategories();
 }
+
+// AI 功能已拆分到 ai.js（保持 script.js 只负责图片管理核心逻辑）
 
 // 渲染分类管理内容
 function renderCategoryManagementContent() {
