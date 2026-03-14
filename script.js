@@ -401,12 +401,14 @@ function renderTags() {
     }
         
     tagContainer.innerHTML = `
-        <div style="padding-top: 16px; background: var(--card); display: flex; gap: 10px; overflow-x: auto; align-items: center;">
-            <span style="color: var(--text-light); font-size: 14px; margin-right: 8px; font-weight: 500;"></span>
-            <button class="btn ${currentTagFilters.length === 0 ? 'btn-primary' : 'btn-secondary'}" onclick="toggleTag('all')" style="padding: 8px 16px; font-size: 13px; min-height: 34px; display: inline-flex; align-items: center; border-radius: 20px; box-shadow: none;">全部</button>
-            ${allTags.map(tag => `
-                <button class="btn ${currentTagFilters.includes(tag) ? 'btn-primary' : 'btn-secondary'}" onclick="toggleTag('${tag}');" style="padding: 8px 16px; font-size: 13px; min-height: 34px; display: inline-flex; align-items: center; border-radius: 20px; box-shadow: none;">${tag}</button>
-            `).join('')}
+        <div class="sub-category-bar">
+            <span class="sub-category-label">标签筛选</span>
+            <div class="sub-category-tags">
+                <button type="button" class="sub-category-chip ${currentTagFilters.length === 0 ? 'is-active' : ''}" onclick="toggleTag('all')">全部</button>
+                ${allTags.map(tag => `
+                    <button type="button" class="sub-category-chip ${currentTagFilters.includes(tag) ? 'is-active' : ''}" onclick="toggleTag('${tag}')">${tag}</button>
+                `).join('')}
+            </div>
         </div>
     `;
 }
@@ -452,13 +454,15 @@ function renderGallery() {
                       hasSuffix(img.name, 'TGA') ? 'TGA' : '';
         return `
         <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
-            ${suffix ? `<div class="mode-badge ${suffix.toLowerCase()}">${suffix}</div>` : ''}
-            <img src="${img.data}" loading="lazy" draggable="false">
+            <div class="img-card-thumb">
+                <img src="${img.data}" loading="lazy" draggable="false" alt="">
+                ${suffix ? `<span class="mode-badge ${suffix.toLowerCase()}">${suffix}</span>` : ''}
+            </div>
             <div class="img-info">
-                <strong>${removeFileExtension(img.name)}</strong>
-                <small>${categoryDisplay} | ${img.date}</small>
+                <strong class="img-card-title">${removeFileExtension(img.name)}</strong>
+                <span class="img-card-meta">${categoryDisplay} · ${img.date}</span>
                 <div class="img-tags">
-                    ${(img.tags && img.tags.length > 0) ? img.tags.map(tag => `<span class="tag-badge" style="background-color: ${getTagColor(tag)}">${tag}</span>`).join(' ') : ''}
+                    ${(img.tags && img.tags.length > 0) ? img.tags.map(tag => `<span class="tag-badge" style="background-color: ${getTagColor(tag)}">${tag}</span>`).join('') : ''}
                 </div>
             </div>
         </div>
@@ -3116,9 +3120,9 @@ function renderDetailTags(tags) {
     
     const container = document.getElementById('detail-tags-container');
     container.innerHTML = sortedTags.map(tag => `
-        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 6px; font-size: 12px; font-weight: 500;">
+        <span class="detail-tag-chip">
             ${tag}
-            <button type="button" onclick="removeTagFromDetail('${tag}')" style="background: none; border: none; color: white; cursor: pointer; font-size: 14px; line-height: 1; padding: 0; margin-left: 4px;">&times;</button>
+            <button type="button" class="detail-tag-remove" onclick="removeTagFromDetail('${tag}')" aria-label="移除标签">&times;</button>
         </span>
     `).join('');
 }
@@ -3241,13 +3245,15 @@ function performSearch() {
                       hasSuffix(img.name, 'TGA') ? 'TGA' : '';
         return `
         <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
-            ${suffix ? `<div class="mode-badge ${suffix.toLowerCase()}">${suffix}</div>` : ''}
-            <img src="${img.data}" loading="lazy" draggable="false">
+            <div class="img-card-thumb">
+                <img src="${img.data}" loading="lazy" draggable="false" alt="">
+                ${suffix ? `<span class="mode-badge ${suffix.toLowerCase()}">${suffix}</span>` : ''}
+            </div>
             <div class="img-info">
-                <strong>${removeFileExtension(img.name)}</strong>
-                <small>${categoryDisplay} | ${img.date}</small>
+                <strong class="img-card-title">${removeFileExtension(img.name)}</strong>
+                <span class="img-card-meta">${categoryDisplay} · ${img.date}</span>
                 <div class="img-tags">
-                    ${(img.tags && img.tags.length > 0) ? img.tags.map(tag => `<span class="tag-badge" style="background-color: ${getTagColor(tag)}">${tag}</span>`).join(' ') : ''}
+                    ${(img.tags && img.tags.length > 0) ? img.tags.map(tag => `<span class="tag-badge" style="background-color: ${getTagColor(tag)}">${tag}</span>`).join('') : ''}
                 </div>
             </div>
         </div>
