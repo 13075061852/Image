@@ -34,13 +34,15 @@ function openAIAnalysis() {
   const aiImagesContainer = document.getElementById('ai-selected-images');
   aiImagesContainer.innerHTML = selectedImages.map(img => `
     <div class="ai-image-card">
-      <img src="${img.data}" alt="${img.name}">
+      <img src="${img.data}" alt="${img.name}" class="ai-image-card-img" style="cursor: pointer;">
       <div class="ai-image-info">
         <div><strong>名称:</strong> ${removeFileExtension(img.name)}</div>
         <div><strong>分类:</strong> ${img.category || '无'}</div>
       </div>
     </div>
   `).join('');
+
+  setupAIImageZoom();
 
   document.getElementById('ai-chat-messages').innerHTML = '';
 
@@ -49,6 +51,43 @@ function openAIAnalysis() {
 
 function closeAIAnalysis() {
   document.getElementById('ai-analysis-overlay').style.display = 'none';
+  closeAIImageZoom();
+}
+
+function openAIImageZoom(src) {
+  const overlay = document.getElementById('ai-image-zoom-overlay');
+  const imgEl = document.getElementById('ai-image-zoom-img');
+  if (!overlay || !imgEl) return;
+  imgEl.src = src || '';
+  overlay.style.display = 'flex';
+}
+
+function closeAIImageZoom() {
+  const overlay = document.getElementById('ai-image-zoom-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'none';
+}
+
+function setupAIImageZoom() {
+  const container = document.getElementById('ai-selected-images');
+  const overlay = document.getElementById('ai-image-zoom-overlay');
+  const closeBtn = document.getElementById('ai-image-zoom-close');
+  if (!container || !overlay) return;
+
+  container.removeEventListener('click', _onAIImageClick);
+  container.addEventListener('click', _onAIImageClick);
+
+  if (closeBtn) {
+    closeBtn.onclick = closeAIImageZoom;
+  }
+  overlay.onclick = function (e) {
+    if (e.target === overlay) closeAIImageZoom();
+  };
+}
+
+function _onAIImageClick(e) {
+  const img = e.target.closest('.ai-image-card img');
+  if (img && img.src) openAIImageZoom(img.src);
 }
 
 // ===== 图片分析 =====

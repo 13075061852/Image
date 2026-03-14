@@ -376,36 +376,6 @@ header h2 {
     pointer-events: none;
 }
 
-/* 排序下拉菜单样式 */
-.sort-select {
-    padding: 10px 16px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-size: 14px;
-    background: var(--card);
-    color: var(--text);
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 6px rgba(79, 70, 229, 0.1);
-    box-sizing: border-box;
-    min-width: 160px;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7l3-3 3 3m0 6l-3 3-3-3'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 12px;
-    padding-right: 40px;
-    height: 42px; /* 设置固定高度与按钮一致 */
-    line-height: 1;
-}
-
-.sort-select:focus {
-    outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-    background: white;
-}
-
 /* 工具栏 */
 .toolbar { 
     display: flex; 
@@ -425,12 +395,6 @@ header h2 {
         min-width: 150px;
     }
     
-    .sort-select {
-        min-width: 140px;
-        padding: 8px 12px;
-        font-size: 13px;
-    }
-    
     .btn {
         padding: 8px 12px;
         font-size: 13px;
@@ -445,11 +409,6 @@ header h2 {
     
     .search-container {
         width: 120px;
-    }
-    
-    .sort-select {
-        min-width: 120px;
-        font-size: 12px;
     }
     
     .btn {
@@ -563,22 +522,20 @@ header h2 {
     box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
 }
 
-/* 响应式菜单面板 */
+/* 响应式菜单面板：与 .dropdown-content 样式保持一致 */
 .responsive-menu-panel {
     display: none;
     position: absolute;
     top: 100%;
     right: 0;
     background: white;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    z-index: 1500; /* 调整z-index使其低于下拉菜单但高于其他内容 */
     min-width: 180px;
     flex-direction: column;
-    gap: 4px;
-    padding: 8px;
-    margin-top: 4px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    z-index: 2000;
+    margin-top: 8px;
 }
 
 /* 在小屏幕上，当需要显示时使用 flex */
@@ -605,12 +562,33 @@ header h2 {
 
 .responsive-menu-panel .btn {
     width: 100%;
-    justify-content: flex-start;
-    margin: 0;
-    display: flex;
     text-align: left;
-    min-height: 42px; /* 与工具栏按钮高度一致 */
-    padding: 10px 16px; /* 与工具栏按钮内边距一致 */
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    justify-content: flex-start;
+    padding: 12px 16px;
+    padding-left: 16px;
+    min-height: 44px;
+    background: white;
+    color: #475569;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+.responsive-menu-panel .btn:hover {
+    background: #f8fafc;
+    color: #1e293b;
+    padding-left: 20px;
+}
+.responsive-menu-panel .btn:last-child {
+    border-bottom: none;
+}
+.responsive-menu-panel .btn i,
+.responsive-menu-panel .btn span {
+    margin-right: 10px;
 }
 
 /* 响应式设计：当屏幕宽度小于一定值时，隐藏工具栏按钮，显示菜单按钮 */
@@ -626,11 +604,6 @@ header h2 {
     .toolbar .menu-toggle-btn {
         display: flex;
         align-items: center;
-    }
-    
-    /* 在小屏幕上隐藏排序下拉菜单，但保留搜索框可见 */
-    .sort-select {
-        display: none;
     }
     
     /* 搜索框在小屏幕模式下保持可见，与菜单按钮同行显示 */
@@ -666,9 +639,9 @@ header h2 {
     display: none;
 }
 
-/* 在中等屏幕上，只隐藏部分按钮 */
+/* 在中等屏幕上，只隐藏工具栏直接子按钮（不隐藏下拉框内的选项） */
 @media (min-width: 769px) and (max-width: 1024px) {
-    .toolbar .btn:not(.menu-toggle-btn):not(.btn-more):not(.btn-secondary):not(.btn-primary) {
+    .toolbar > .btn:not(.menu-toggle-btn):not(.btn-more):not(.btn-secondary):not(.btn-primary) {
         display: none;
     }
     
