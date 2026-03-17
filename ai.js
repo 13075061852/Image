@@ -1045,6 +1045,14 @@ function selectConversation(conversationId) {
                                         </svg>
                                         下载PDF
                                     </button>
+                                    <button onclick="deleteMessage('${conversation.id}', ${index})" style="padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; color: #ef4444; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 6h18"></path>
+                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                        </svg>
+                                        删除
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1375,6 +1383,14 @@ async function analyzeImageWithAI(selectedImages) {
                         </svg>
                         下载PDF
                     </button>
+                    <button onclick="deleteMessage('${currentConversationId}', ${conversation ? conversation.messages.length : 0})" style="padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; color: #ef4444; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18"></path>
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                        </svg>
+                        删除
+                    </button>
                 </div>
             </div>
         `;
@@ -1424,7 +1440,8 @@ async function analyzeImageWithAI(selectedImages) {
                     // 如果当前显示的是原始对话，更新显示
                     if (currentConversation && currentConversation.id === currentConversationId) {
                         currentConversation = originalConversation;
-                        selectConversation(currentConversationId);
+                        // 不要重新加载对话，因为会导致功能区消失
+                        // selectConversation(currentConversationId);
                     }
                 }
             }
@@ -1472,8 +1489,64 @@ async function sendAIMessage() {
     // 保存当前对话ID，确保结果保存到正确的对话中
     const currentConversationId = currentConversation.id;
 
-    // 清空对话框内的提示信息，只显示用户和AI的对话信息
-    messagesContainer.innerHTML = '';
+    // 加载当前对话的历史消息
+    const conversation = loadConversationHistory(currentConversationId);
+    let messagesHtml = '';
+    
+    if (conversation && conversation.messages && conversation.messages.length > 0) {
+        messagesHtml = conversation.messages.map(msg => {
+            const messageId = `ai-message-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const messageIndex = conversation.messages.indexOf(msg);
+            
+            if (msg.role === 'user') {
+                // 用户消息
+                return `
+                    <div class="ai-message ai-user" style="display: flex; gap: 12px; justify-content: flex-end; margin-bottom: 20px;">
+                        <div style="flex: 1; padding: 12px 16px; background: #dbeafe; color: #000000; border-radius: 18px 18px 4px 18px; font-size: 14px; line-height: 1.6; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6;">
+                            ${msg.content}
+                        </div>
+                    </div>
+                `;
+            } else {
+                // AI消息
+                return `
+                    <div class="ai-message ai-assistant" style="display: flex; gap: 12px; justify-content: flex-start; margin-bottom: 20px;">
+                        <div style="flex: 1; padding: 12px 16px; background: #f8fafc; color: #1e293b; border-radius: 18px 18px 18px 4px; font-size: 14px; line-height: 1.6; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+                            <div id="${messageId}-content">${formatAIResponse(msg.content)}</div>
+                            <div id="${messageId}-actions" style="display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+                                <button onclick="copyAIMessage('${messageId}')" style="padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; color: #475569; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                    复制
+                                </button>
+                                <button onclick="downloadAIMessageAsPDF('${messageId}')" style="padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; color: #475569; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    下载PDF
+                                </button>
+                                <button onclick="deleteMessage('${currentConversationId}', ${messageIndex})" style="padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; color: #ef4444; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 6h18"></path>
+                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                    </svg>
+                                    删除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }).join('');
+    }
+
+    // 清空对话框并加载历史消息
+    messagesContainer.innerHTML = messagesHtml;
 
     // 显示用户消息
     const userMessage = document.createElement('div');
@@ -1555,6 +1628,14 @@ async function sendAIMessage() {
                         </svg>
                         下载PDF
                     </button>
+                    <button onclick="deleteMessage('${currentConversationId}', ${conversation ? conversation.messages.length : 0})" style="padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; color: #ef4444; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18"></path>
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                        </svg>
+                        删除
+                    </button>
                 </div>
             </div>
         `;
@@ -1607,6 +1688,9 @@ async function sendAIMessage() {
         console.log('Current conversation:', currentConversation);
         if (fullResponse && resultElement) {
             resultElement.innerHTML = formatAIResponse(fullResponse);
+            if (actionsElement) {
+                actionsElement.style.display = 'flex';
+            }
             
             // 保存对话历史
             if (currentConversationId) {
@@ -1946,6 +2030,63 @@ function parseMarkdownToPdfMake(markdown) {
     }
     
     return content;
+}
+
+// 删除指定消息
+function deleteMessage(conversationId, messageIndex) {
+    if (!conversationId || messageIndex === undefined) {
+        showToast('删除消息失败：参数无效', 'error');
+        return;
+    }
+    
+    try {
+        // 加载对话历史
+        const conversation = loadConversationHistory(conversationId);
+        
+        if (!conversation || !conversation.messages || !Array.isArray(conversation.messages)) {
+            showToast('删除消息失败：对话历史不存在', 'error');
+            return;
+        }
+        
+        // 检查消息索引是否有效
+        if (messageIndex < 0 || messageIndex >= conversation.messages.length) {
+            showToast('删除消息失败：消息不存在', 'error');
+            return;
+        }
+        
+        // 检查是否是AI消息
+        if (conversation.messages[messageIndex].role !== 'assistant') {
+            showToast('只能删除AI回复的消息', 'error');
+            return;
+        }
+        
+        // 计算要删除的消息数量
+        // 如果AI消息前面有用户消息，则同时删除
+        let messagesToDelete = 1; // 默认只删除AI消息
+        let startIndex = messageIndex;
+        
+        // 检查前一条消息是否是用户消息
+        if (messageIndex > 0 && conversation.messages[messageIndex - 1].role === 'user') {
+            messagesToDelete = 2;
+            startIndex = messageIndex - 1;
+        }
+        
+        // 删除消息
+        conversation.messages.splice(startIndex, messagesToDelete);
+        
+        // 保存更新后的对话历史
+        saveConversationHistory(conversation);
+        
+        // 重新加载对话
+        if (currentConversation && currentConversation.id === conversationId) {
+            selectConversation(conversationId);
+        }
+        
+        showToast('消息删除成功', 'success');
+    } catch (error) {
+        console.error('删除消息失败:', error);
+        showToast('删除消息失败', 'error');
+    }
 }
 
 // 解析HTML内容为pdfmake格式
