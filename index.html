@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- AI 分析结果样式 -->
     <style>
         #ai-chat-messages .ai-heading {
@@ -174,8 +176,16 @@
             <div id="zoom-list"></div>
         </div>
         <div class="zoom-main">
-            <img id="zoom-image" src="" alt="">
-            <div id="zoom-title" class="zoom-title"></div>
+            <div class="zoom-left-panel">
+                <img id="zoom-image" src="" alt="">
+                <div id="zoom-title" class="zoom-title"></div>
+            </div>
+            <div class="zoom-right-panel">
+                <div class="zoom-ai-section">
+                    <button id="zoom-ai-btn" class="btn btn-ai" onclick="analyzeZoomImage()">🤖 AI解析</button>
+                    <div id="zoom-ai-result" class="zoom-ai-result"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -310,31 +320,73 @@
 </div>
 
 <!-- AI分析界面 -->
-<div id="ai-analysis-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; backdrop-filter: blur(5px);">
-    <div class="ai-analysis-container" style="width: 90%; max-width: 1200px; height: 90%; margin: 5vh auto; background: white; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column;">
+<div id="ai-analysis-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; backdrop-filter: blur(8px);">
+    <div class="ai-analysis-container" style="width: 92%; max-width: 1300px; height: 92%; margin: 4vh auto; background: white; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
         <!-- 头部 -->
-        <div class="ai-analysis-header" style="padding: 24px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0; font-size: 20px; font-weight: 600;">🤖 AI分析</h3>
-            <button onclick="closeAIAnalysis()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s;">×</button>
+        <div class="ai-analysis-header" style="padding: 28px 32px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);">
+            <div>
+                <h3 style="margin: 0 0 6px 0; font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <span>🤖</span>
+                    AI智能分析
+                </h3>
+                <p style="margin: 0; font-size: 14px; opacity: 0.9;">基于 openai/gpt-4o 模型，提供专业的图片分析和对话</p>
+            </div>
+            <button onclick="closeAIAnalysis()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 44px; height: 44px; border-radius: 50%; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; backdrop-filter: blur(10px);">×</button>
         </div>
         
         <!-- 内容区域 -->
         <div class="ai-analysis-body" style="flex: 1; display: flex; overflow: hidden;">
-            <!-- 左侧图片区域 -->
-            <div class="ai-image-section" style="width: 40%; padding: 24px; border-right: 1px solid #e2e8f0; overflow-y: auto;">
-                <h4 style="margin: 0 0 16px 0; font-size: 16px; color: #1e293b;">选中的图片</h4>
-                <div id="ai-selected-images" style="display: flex; flex-direction: column; gap: 16px;"></div>
+            <!-- 左侧区域 -->
+            <div class="ai-left-section" style="width: 35%; display: flex; flex-direction: column; border-right: 1px solid #e2e8f0; background: #f8fafc; height: 100%;">
+                <!-- 对话列表区域 -->
+                <div class="ai-conversation-list" style="flex: 1; display: flex; flex-direction: column; border-bottom: 1px solid #e2e8f0; min-height: 0;">
+                    <!-- 对话历史标头 -->
+                    <div style="padding: 12px 20px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; z-index: 10;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                                <h4 style="margin: 0; font-size: 16px; font-weight: 600; color: #1e293b; white-space: nowrap;">对话历史</h4>
+                                <!-- 搜索框 -->
+                                <div style="position: relative; flex: 1; min-width: 150px;">
+                                    <input type="text" id="ai-conversation-search" placeholder="搜索对话..." style="width: 100%; padding: 8px 32px 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; transition: all 0.3s; background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                    <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px;">🔍</span>
+                                </div>
+                            </div>
+                            <button onclick="createNewConversationFromUI()" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                                <span>+</span>
+                                <span>新对话</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 对话历史内容 -->
+                    <div id="ai-conversation-items" style="flex: 1; padding: 12px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+                
+                <!-- 图片区域 -->
+                <div class="ai-image-section" style="flex: 1; display: flex; flex-direction: column; border-top: 1px solid #e2e8f0; min-height: 0;">
+                    <!-- 选中图片标头 -->
+                    <div style="padding: 12px 20px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; z-index: 10;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 style="margin: 0; font-size: 16px; font-weight: 600; color: #1e293b;">选中的图片</h4>
+                            <span id="ai-image-count" style="font-size: 13px; color: #64748b; background: #e2e8f0; padding: 4px 10px; border-radius: 12px;">0张</span>
+                        </div>
+                    </div>
+                    <!-- 选中图片内容 -->
+                    <div id="ai-selected-images" style="flex: 1; padding: 12px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;"></div>
+                </div>
             </div>
             
             <!-- 右侧分析结果区域 -->
             <div class="ai-result-section" style="flex: 1; display: flex; flex-direction: column;">
                 <!-- 对话区域 -->
-                <div id="ai-chat-messages" style="flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;"></div>
+                <div id="ai-chat-messages" style="flex: 1; padding: 32px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #ffffff;"></div>
                 
                 <!-- 输入区域 -->
-                <div class="ai-input-section" style="padding: 24px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px;">
-                    <input type="text" id="ai-input" placeholder="输入问题或继续对话..." style="flex: 1; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s;">
-                    <button id="ai-send-btn" onclick="sendAIMessage()" style="padding: 12px 24px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;">发送</button>
+                <div class="ai-input-section" style="padding: 28px 32px; border-top: 1px solid #e2e8f0; display: flex; gap: 16px; background: #f8fafc; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);">
+                    <input type="text" id="ai-input" placeholder="输入问题或继续对话..." style="flex: 1; padding: 16px 20px; border: 2px solid #e2e8f0; border-radius: 24px; font-size: 15px; outline: none; transition: all 0.3s; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <button id="ai-send-btn" onclick="sendAIMessage()" style="padding: 16px 28px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; border-radius: 24px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.3s; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+                        发送
+                        <span style="margin-left: 8px;">→</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -354,20 +406,48 @@
             <div class="api-config-title-wrap">
                 <span class="api-config-icon">⚙️</span>
                 <h4 class="api-config-title">API 配置</h4>
-                <p class="api-config-desc">配置豆包 API 密钥与模型，用于 AI 分析与对话</p>
+                <p class="api-config-desc">配置OpenRouter API密钥与模型，用于 AI 分析与对话</p>
             </div>
             <button type="button" id="close-api-config-dialog" class="api-config-close" onclick="closeAPIConfigModal()" aria-label="关闭">×</button>
         </div>
         <div class="api-config-body">
             <div class="api-config-field">
-                <label for="doubao-api-key">豆包 API 密钥</label>
-                <input type="password" id="doubao-api-key" placeholder="请输入 API Key（Bearer Token）" class="api-config-input" autocomplete="off">
+                <label for="openrouter-api-key">OpenRouter API 密钥</label>
+                <input type="password" id="openrouter-api-key" placeholder="请输入 API Key（Bearer Token）" class="api-config-input" autocomplete="off">
             </div>
             <div class="api-config-field">
-                <label for="doubao-api-model">模型 / 端点</label>
-                <select id="doubao-api-model" class="api-config-input">
-                    <option value="ep-20260313102318-lcm5t">豆包</option>
-                </select>
+                <label for="openrouter-api-model">模型选择</label>
+                <div class="custom-select" id="custom-model-select">
+                    <div class="custom-select-value" id="custom-select-value" onclick="toggleCustomSelect()">
+                        请先输入 API Key
+                    </div>
+                    <div class="custom-select-dropdown" id="custom-select-dropdown" style="display: none;">
+                        <div class="custom-select-options" id="custom-select-options"></div>
+                    </div>
+                </div>
+                <input type="hidden" id="openrouter-api-model" value="">
+                <div class="model-info" id="model-info"></div>
+                <div class="vision-hint" id="vision-hint" style="display: none;">
+                    👁️ 支持图片识别
+                </div>
+                <div class="model-status" id="model-status" style="display: none;">
+                    <span class="model-status-icon" id="model-status-icon"></span>
+                    <div>
+                        <div class="model-status-text" id="model-status-text"></div>
+                        <div class="model-status-detail" id="model-status-detail"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="recommended-models">
+                <label>推荐模型</label>
+                <div class="model-chips">
+                    <button class="model-chip" onclick="selectModel('openai/gpt-4o-mini')">GPT-4o Mini 👁️</button>
+                    <button class="model-chip" onclick="selectModel('google/gemini-2.0-flash-exp:free')">Gemini Free 👁️</button>
+                    <button class="model-chip" onclick="selectModel('deepseek/deepseek-chat')">DeepSeek</button>
+                    <button class="model-chip" onclick="selectModel('meta-llama/llama-3.1-8b-instruct:free')">Llama Free</button>
+                    <button class="model-chip" onclick="selectModel('anthropic/claude-3.5-sonnet')">Claude 3.5 👁️</button>
+                    <button class="model-chip" onclick="selectModel('openai/gpt-4o')">GPT-4o 👁️</button>
+                </div>
             </div>
         </div>
         <div class="api-config-footer">
@@ -428,12 +508,193 @@
     transition: border-color 0.2s, box-shadow 0.2s;
     box-sizing: border-box;
 }
+
+/* 确保下拉框内容朝下显示 */
+select.api-config-input {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    -o-appearance: none;
+}
+
+/* 为下拉框添加向下的箭头 */
+select.api-config-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+}
+
+/* 确保输入框不应用下拉箭头样式 */
+input.api-config-input {
+    background-image: none;
+    padding-right: 14px;
+}
+
+/* 控制下拉框的最大高度和展开方向 */
+select.api-config-input {
+    overflow-y: auto;
+}
+
+/* 为WebKit浏览器控制下拉菜单高度 */
+select.api-config-input::-webkit-scrollbar {
+    width: 8px;
+}
+
+select.api-config-input::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+select.api-config-input::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+select.api-config-input::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* 确保模态窗口有足够的空间容纳下拉框 */
+.api-config-dialog {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* 调整下拉菜单的最大高度 */
+.api-config-field {
+    position: relative;
+}
+
+.api-config-field select {
+    position: relative;
+    z-index: 1;
+}
+
+/* 为下拉菜单设置最大高度 */
+.api-config-field select option {
+    max-height: 100px;
+}
 .api-config-input:focus {
     outline: none;
     border-color: #6366f1;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
+
+/* 为select元素设置正确的focus样式 */
+select.api-config-input:focus {
+    padding-right: 40px;
+}
+
+/* 为输入框设置正确的focus样式 */
+input.api-config-input:focus {
+    padding-right: 14px;
+}
 .api-config-input::placeholder { color: #94a3b8; }
+
+/* 自定义下拉菜单样式 */
+.custom-select {
+    position: relative;
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.custom-select-value {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    color: #1e293b;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+}
+
+.custom-select-value:hover {
+    border-color: #cbd5e1;
+}
+
+.custom-select-value:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.custom-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 1000;
+    margin-top: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.custom-select-options {
+    padding: 8px 0;
+}
+
+.custom-select-option {
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 14px;
+    color: #1e293b;
+}
+
+.custom-select-option:hover {
+    background: #f1f5f9;
+}
+
+.custom-select-option.selected {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+    font-weight: 500;
+}
+
+.custom-select-optgroup {
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* 自定义下拉菜单滚动条样式 */
+.custom-select-dropdown::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-select-dropdown::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.custom-select-dropdown::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.custom-select-dropdown::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
 .api-config-footer {
     padding: 20px 24px;
     background: #f8fafc;
@@ -475,7 +736,8 @@
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="script.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
 <script src="ai.js"></script>
+<script src="script.js"></script>
 </body>
 </html>

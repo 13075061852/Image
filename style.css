@@ -962,11 +962,7 @@ header h2 {
 }
 
 .ai-message {
-    background: #f1f5f9;
-    border-radius: 12px 12px 12px 0;
-    padding: 16px;
     align-self: flex-start;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .ai-message .ai-message-header {
@@ -1014,6 +1010,14 @@ header h2 {
     font-size: 14px;
     line-height: 1.5;
     color: white;
+}
+
+.ai-user {
+    align-self: flex-end;
+}
+
+.ai-assistant {
+    align-self: flex-start;
 }
 
 .ai-input-section input:focus {
@@ -1948,9 +1952,93 @@ header h2 {
     color: white;
     display: flex;
     justify-content: space-between;
+}
+
+/* 放大视图AI解析功能 - 左右布局 */
+.zoom-main {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    padding: 20px;
+    gap: 20px;
+}
+
+.zoom-left-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
-    position: relative;
-    overflow: hidden;
+}
+
+.zoom-right-panel {
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    overflow-y: auto;
+}
+
+.zoom-ai-section {
+    width: 100%;
+}
+
+#zoom-ai-btn {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+#zoom-ai-btn:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-1px);
+}
+
+#zoom-ai-btn:disabled {
+    background: #6b7280;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.zoom-ai-result {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 20px;
+    color: white;
+    font-size: 14px;
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    line-height: 1.6;
+}
+
+.zoom-ai-result.loading {
+    text-align: center;
+    padding: 40px;
+}
+
+/* 调整放大视图图片样式 */
+#zoom-image {
+    max-width: 100%;
+    max-height: calc(100vh - 200px);
+    object-fit: contain;
+}
+
+.zoom-title {
+    color: white;
+    margin-top: 15px;
+    font-size: 16px;
+    text-align: center;
 }
 
 .modal-header-new::before {
@@ -2527,5 +2615,118 @@ header h2 {
 .dialog-footer .btn-danger,
 .dialog-footer .btn-primary {
     min-width: 80px;
+}
+
+/* 推荐模型样式 */
+.recommended-models {
+    margin-top: 24px;
+}
+
+.recommended-models label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 12px;
+}
+
+.model-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.model-chip {
+    padding: 8px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    background: #fff;
+    color: #334155;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.model-chip:hover {
+    border-color: #6366f1;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.model-chip.active {
+    border-color: #6366f1;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+}
+
+/* 模型信息样式 */
+.model-info {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 6px;
+    line-height: 1.4;
+}
+
+.vision-hint {
+    font-size: 12px;
+    color: #6366f1;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.model-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+}
+
+.model-status.checking {
+    background: rgba(250, 204, 21, 0.1);
+    color: #f59e0b;
+}
+
+.model-status.available {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.model-status.unavailable {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.model-status-icon {
+    font-size: 16px;
+}
+
+.model-status-text {
+    flex: 1;
+}
+
+.model-status-detail {
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 4px;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
