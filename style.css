@@ -712,7 +712,7 @@ header h2 {
 
 /* 在中等屏幕上，只隐藏工具栏直接子按钮（不隐藏下拉框内的选项） */
 @media (min-width: 769px) and (max-width: 1024px) {
-    .toolbar > .btn:not(.menu-toggle-btn):not(.btn-more):not(.btn-secondary):not(.btn-primary) {
+    .toolbar > .btn:not(.menu-toggle-btn):not(.btn-more):not(.btn-secondary):not(.btn-primary):not(.btn-ai) {
         display: none;
     }
     

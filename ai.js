@@ -1001,14 +1001,43 @@ function selectConversation(conversationId) {
         aiChatMessages.innerHTML = '';
         
         if (!conversation.messages || conversation.messages.length === 0) {
-            console.log('No messages found, showing empty state');
+            console.log('No messages found, showing empty state with recommended questions');
+            const hasImages = conversation.images && conversation.images.length > 0;
+            
+            let recommendedQuestions = '';
+            if (hasImages) {
+                const imageCount = conversation.images.length;
+                recommendedQuestions = `
+                    <div style="margin-top: 32px; width: 100%; max-width: 500px;">
+                        <h4 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #1e293b; text-align: left;">推荐问题</h4>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            ${imageCount > 1 ? `
+                                <button onclick="askRecommendedQuestion('帮我对比分析如下几张图片，找出它们的异同点和特点')" style="padding: 12px 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #475569; cursor: pointer; transition: all 0.2s; text-align: left; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                    📊 帮我对比分析如下几张图片
+                                </button>
+                            ` : ''}
+                            <button onclick="askRecommendedQuestion('请详细描述这张图片的内容和特点')" style="padding: 12px 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #475569; cursor: pointer; transition: all 0.2s; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                📝 详细描述这张图片的内容
+                            </button>
+                            <button onclick="askRecommendedQuestion('这张图片的主题是什么？有什么象征意义？')" style="padding: 12px 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #475569; cursor: pointer; transition: all 0.2s; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                🎨 分析图片的主题和象征意义
+                            </button>
+                            <button onclick="askRecommendedQuestion('这张图片的构图和色彩运用有什么特点？')" style="padding: 12px 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #475569; cursor: pointer; transition: all 0.2s; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                🖌️ 分析图片的构图和色彩
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            
             aiChatMessages.innerHTML = `
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px;">
                     <div style="font-size: 64px; margin-bottom: 24px;">💬</div>
                     <h3 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 600; color: #1e293b;">请开始您的对话</h3>
                     <p style="margin: 0 0 32px 0; font-size: 16px; color: #64748b; max-width: 400px; line-height: 1.6;">
-                        这是一个新的对话，请输入您的问题开始对话。
+                        ${hasImages ? '您已选择了图片，可以直接输入问题或选择推荐问题开始分析。' : '这是一个新的对话，请输入您的问题开始对话。'}
                     </p>
+                    ${recommendedQuestions}
                 </div>
             `;
         } else {
@@ -1463,6 +1492,23 @@ async function analyzeImageWithAI(selectedImages) {
         input.disabled = false;
         input.focus();
     }
+}
+
+// 处理推荐问题点击
+function askRecommendedQuestion(question) {
+    if (!currentConversation) {
+        showToast('请先选择或创建对话', 'error');
+        return;
+    }
+    
+    // 将问题设置到输入框
+    const aiInput = document.getElementById('ai-input');
+    if (aiInput) {
+        aiInput.value = question;
+    }
+    
+    // 调用sendAIMessage函数发送问题
+    sendAIMessage();
 }
 
 // 发送AI消息
