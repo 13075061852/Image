@@ -90,7 +90,7 @@ function getTagColor(tag) {
     for (let i = 0; i < tag.length; i++) {
         hash = tag.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
+
     // 使用哈希值生成HSL颜色，固定饱和度和亮度，只改变色相
     const hue = hash % 360;
     return `hsl(${hue}, 70%, 50%)`;
@@ -126,19 +126,19 @@ function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    
+
     let icon = 'ℹ️';
     if (type === 'success') icon = '✅';
     if (type === 'error') icon = '❌';
     if (type === 'warning') icon = '⚠️';
-    
+
     toast.innerHTML = `
         <span class="toast-icon">${icon}</span>
         <span class="toast-message">${message}</span>
     `;
-    
+
     container.appendChild(toast);
-    
+
     // 3秒后自动消失
     setTimeout(() => {
         toast.classList.add('hiding');
@@ -201,7 +201,7 @@ function waitForImagesLoaded() {
 async function saveImage(file, category = '') {
     // 等待图片列表加载完成
     await waitForImagesLoaded();
-    
+
     // 检查是否存在相同名称的图片
     if (checkDuplicateImage(file.name)) {
         // 如果存在相同名称的图片，询问用户是否覆盖
@@ -236,14 +236,14 @@ async function updateExistingImage(file, category = '') {
     const reader = new FileReader();
     reader.onload = (e) => {
         const newData = e.target.result;
-        
+
         // 开始事务以查找并更新现有图片
         const transaction = db.transaction([STORE_NAME], "readwrite");
         const store = transaction.objectStore(STORE_NAME);
-        
+
         // 查找同名图片
         const request = store.openCursor();
-        request.onsuccess = function(event) {
+        request.onsuccess = function (event) {
             const cursor = event.target.result;
             if (cursor) {
                 const item = cursor.value;
@@ -252,10 +252,10 @@ async function updateExistingImage(file, category = '') {
                     item.data = newData;
                     item.category = category || item.category; // 如果提供了新分类，则更新分类
                     item.date = new Date().toLocaleString(); // 更新日期
-                    
+
                     // 更新数据库中的记录
                     cursor.update(item);
-                    
+
                     // 完成后重新加载数据
                     transaction.oncomplete = () => {
                         loadImages();
@@ -276,21 +276,21 @@ function renderCategories() {
     // 通过空分类记录和真实图片记录共同确定存在的分类
     const emptyCategoryRecords = allImages.filter(img => img.isEmptyCategory && img.name.startsWith('__EMPTY_IMAGE__')).map(img => img.category);
     const realCategories = allImages.filter(img => !img.isEmptyCategory).map(img => img.category);
-    
+
     // 合并所有分类并去重
     let allCategories = [...new Set([...emptyCategoryRecords, ...realCategories])].filter(cat => cat !== undefined && cat !== '' && cat !== 'all' && cat !== '全部');
-    
+
     // 确保 "其他" 分类始终存在，如果没有则创建一个空的
     if (!allCategories.includes('其他')) {
         // 添加到数组末尾，确保它出现在列表底部
         allCategories.push('其他');
     }
-    
+
     // 排序：普通分类按字母顺序排列，"其他"放在最后
     allCategories.sort();
-    
+
     const container = document.getElementById('category-list');
-    
+
     // 为每个分类计算统计信息并生成HTML（不包括"全部"，因为它已在HTML中静态定义）
     const html = allCategories.map(cat => {
         let categoryImages = [];
@@ -300,14 +300,14 @@ function renderCategories() {
         } else {
             categoryImages = allImages.filter(img => img.category === cat && !img.isEmptyCategory);
         }
-        
+
         const categoryCount = categoryImages.length;
         const selectedCount = categoryImages.filter(img => selectedIds.has(img.id)).length;
-        
+
         // 检查是否是小屏幕模式
         const isSmallScreen = window.innerWidth <= 768;
         const displayName = isSmallScreen ? cat.substring(0, 2) : cat; // 只显示前两个字符
-        
+
         return `
             <div class="nav-item ${currentFilter === cat ? 'active' : ''}" onclick="filterCategory('${cat}')" title="${cat} (${categoryCount})">
                 <span>${displayName}</span>
@@ -315,12 +315,12 @@ function renderCategories() {
             </div>
         `;
     }).join('');
-    
+
     container.innerHTML = html;
-    
+
     // 更新"全部"分类的统计信息（静态定义的按钮）
     updateAllCategoryStats();
-    
+
     // 渲染标签（在主界面上方）
     renderTags();
 }
@@ -332,18 +332,18 @@ function updateAllCategoryStats() {
         const img = allImages.find(i => i.id === id);
         return img && !img.isEmptyCategory;
     }).length;
-    
+
     const allCategoryBtn = document.getElementById('all-category-btn');
     if (allCategoryBtn) {
         // 检查是否是小屏幕模式
         const isSmallScreen = window.innerWidth <= 768;
         const displayName = isSmallScreen ? '全部'.substring(0, 2) : '全部'; // 只显示前两个字符
-        
+
         allCategoryBtn.innerHTML = `
             <span>${displayName}</span>
             <span class="stats">(${allImagesCount}) <span class="selected-count">${allSelectedCount}</span></span>
         `;
-        
+
         // 保持活动状态类
         if (currentFilter === 'all') {
             allCategoryBtn.classList.add('active');
@@ -357,7 +357,7 @@ function updateAllCategoryStats() {
 function renderTags() {
     const tagContainer = document.getElementById('sub-category-container');
     if (!tagContainer) return;
-        
+
     // 获取所有图片的标签，无论当前分类如何
     let allTags = [];
     if (currentFilter === 'all') {
@@ -373,15 +373,15 @@ function renderTags() {
             .flatMap(img => img.tags)
         )];
     }
-    
+
     // 定义优先显示的标签
     const priorityTags = ['PBT', 'PET', 'PBT+PET', 'PC', 'PA6', 'PA66'];
-    
+
     // 对标签进行排序：优先标签在前，其余按字母顺序
     allTags.sort((a, b) => {
         const aIsPriority = priorityTags.includes(a);
         const bIsPriority = priorityTags.includes(b);
-        
+
         // 如果两者都是优先标签或都不是优先标签，按在priorityTags中的顺序或字母顺序排序
         if (aIsPriority && bIsPriority) {
             return priorityTags.indexOf(a) - priorityTags.indexOf(b);
@@ -393,13 +393,13 @@ function renderTags() {
             return a.localeCompare(b); // 都不是优先标签时按字母顺序
         }
     });
-        
+
     if (allTags.length === 0) {
         // 如果没有标签，不显示标签导航
         tagContainer.innerHTML = '';
         return;
     }
-        
+
     tagContainer.innerHTML = `
         <div class="sub-category-bar">
             <span class="sub-category-label">标签筛选</span>
@@ -416,13 +416,13 @@ function renderTags() {
 // 渲染画廊
 function renderGallery() {
     const container = document.getElementById('gallery');
-    
+
     // 应用主分类和标签的过滤
     let filtered = allImages;
-    
+
     // 过滤掉空分类记录
     filtered = filtered.filter(img => !img.isEmptyCategory);
-    
+
     if (currentFilter !== 'all') {
         if (currentFilter === '其他') {
             // 显示所有没有分类的图片以及明确分类为"其他"的图片
@@ -431,7 +431,7 @@ function renderGallery() {
             filtered = filtered.filter(img => img.category === currentFilter);
         }
     }
-    
+
     // 如果设置了标签过滤（支持多选）
     if (currentTagFilters.length > 0) {
         filtered = filtered.filter(img => {
@@ -440,18 +440,18 @@ function renderGallery() {
             return currentTagFilters.every(tag => img.tags.includes(tag));
         });
     }
-    
+
     // 应用模式过滤（注意：模式过滤在标签过滤之后应用）
     if (currentModeFilter && currentModeFilter !== 'ALL') {
         filtered = filtered.filter(img => hasSuffix(img.name, currentModeFilter));
     }
-    
+
     container.innerHTML = filtered.map(img => {
         const tagsDisplay = img.tags && img.tags.length > 0 ? img.tags.join(', ') : '无标签';
         const categoryDisplay = img.category ? img.category : '其他';
         // 检测图片名称是否包含DSC或TGA后缀
-        const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' : 
-                      hasSuffix(img.name, 'TGA') ? 'TGA' : '';
+        const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' :
+            hasSuffix(img.name, 'TGA') ? 'TGA' : '';
         return `
         <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
             <div class="img-card-thumb">
@@ -466,7 +466,8 @@ function renderGallery() {
                 </div>
             </div>
         </div>
-    `;}).join('');
+    `;
+    }).join('');
     updateUI();
 }
 
@@ -477,7 +478,7 @@ function toggleSelect(id) {
     } else {
         selectedIds.add(id);
     }
-    
+
     // 更新单个卡片的选中状态 - 仅通过CSS类控制
     const card = document.querySelector(`.img-card[data-id="${id}"]`);
     if (card) {
@@ -487,7 +488,7 @@ function toggleSelect(id) {
             card.classList.remove('selected');
         }
     }
-    
+
     updateUI(); // 确保UI更新
     renderCategories(); // 重新渲染分类以更新统计信息
 }
@@ -495,10 +496,10 @@ function toggleSelect(id) {
 // 全选当前列表
 function selectAllVisible() {
     let visible = allImages;
-    
+
     // 过滤掉空分类记录
     visible = visible.filter(img => !img.isEmptyCategory);
-    
+
     if (currentFilter !== 'all') {
         if (currentFilter === '其他') {
             // 选择所有没有分类的图片以及明确分类为"其他"的图片
@@ -507,38 +508,38 @@ function selectAllVisible() {
             visible = visible.filter(img => img.category === currentFilter);
         }
     }
-    
+
     if (currentTagFilters.length > 0) {
         visible = visible.filter(img => {
             if (!img.tags || img.tags.length === 0) return false;
             return currentTagFilters.every(tag => img.tags.includes(tag));
         });
     }
-    
+
     // 应用模式过滤
     if (currentModeFilter && currentModeFilter !== 'ALL') {
         visible = visible.filter(img => hasSuffix(img.name, currentModeFilter));
     }
-    
+
     // 批量添加到选中集合
     visible.forEach(img => {
         if (img.id != null) {
             selectedIds.add(img.id);
         }
     });
-    
+
     // 批量更新DOM - 更新所有可见图片的卡片状态
     // 遍历所有图片卡片，检查是否在当前可见列表中，如果是则更新选中状态
     const allCards = document.querySelectorAll('.img-card');
     allCards.forEach(card => {
         const id = parseInt(card.getAttribute('data-id'));
         const isVisible = visible.some(img => img.id === id);
-        
+
         if (isVisible) {
             card.classList.add('selected');
         }
     });
-    
+
     updateUI(); // 确保UI更新
     renderCategories(); // 重新渲染分类以更新统计信息
 }
@@ -550,10 +551,10 @@ function clearSelection() {
     allCards.forEach(card => {
         card.classList.remove('selected');
     });
-    
+
     // 批量清除选中状态
     selectedIds.clear();
-    
+
     updateUI(); // 确保UI更新
     renderCategories(); // 重新渲染分类以更新统计信息
 }
@@ -563,7 +564,7 @@ function updateUI() {
     let visible = allImages;
     // 过滤掉空分类记录
     visible = visible.filter(img => !img.isEmptyCategory);
-    
+
     if (currentFilter !== 'all') {
         if (currentFilter === '其他') {
             // 计算所有没有分类的图片以及明确分类为"其他"的图片
@@ -572,24 +573,24 @@ function updateUI() {
             visible = visible.filter(img => img.category === currentFilter);
         }
     }
-    
+
     if (currentTagFilters.length > 0) {
         visible = visible.filter(img => {
             if (!img.tags || img.tags.length === 0) return false;
             return currentTagFilters.every(tag => img.tags.includes(tag));
         });
     }
-    
+
     // 应用模式过滤
     if (currentModeFilter && currentModeFilter !== 'ALL') {
         visible = visible.filter(img => hasSuffix(img.name, currentModeFilter));
     }
-    
+
     const visibleCount = visible.filter(img => img.id != null).length;
-    
+
     // 计算当前模式下实际选中的图片数量（即同时满足过滤条件且被选中的图片）
     const selectedVisibleCount = visible.filter(img => selectedIds.has(img.id)).length;
-    
+
     // 更新全选按钮文本，保留✓符号
     const toggleBtn = document.getElementById('toggle-select-btn');
     if (toggleBtn) {
@@ -597,16 +598,16 @@ function updateUI() {
         const buttonText = selectedVisibleCount === visibleCount && visibleCount > 0 ? '✓ 取消全选' : '✓ 全选';
         toggleBtn.innerText = buttonText;
     }
-    
+
     // 更新移动设备全选按钮文本（响应式菜单面板中的），保留✓符号
     const mobileToggleBtn = document.getElementById('mobile-toggle-select-btn');
     if (mobileToggleBtn) {
         const buttonText = selectedVisibleCount === visibleCount && visibleCount > 0 ? '✓ 取消全选' : '✓ 全选';
         mobileToggleBtn.innerText = buttonText;
     }
-    
 
-    
+
+
     // 更新模式切换按钮文本，保留图标
     const modeToggleBtn = document.getElementById('mode-toggle-btn');
     if (modeToggleBtn) {
@@ -614,7 +615,7 @@ function updateUI() {
         const icon = '📊'; // 保留原始图标
         modeToggleBtn.innerHTML = `${icon} ${currentModeFilter}`;
     }
-    
+
     // 更新移动设备模式切换按钮文本，保留图标
     const mobileModeToggleBtn = document.getElementById('mobile-mode-toggle-btn');
     if (mobileModeToggleBtn) {
@@ -622,7 +623,7 @@ function updateUI() {
         const icon = '📊'; // 保留原始图标
         mobileModeToggleBtn.innerHTML = `${icon} ${currentModeFilter}`;
     }
-    
+
     // 更新"全部"分类的统计信息
     updateAllCategoryStats();
 }
@@ -630,7 +631,7 @@ function updateUI() {
 // 切换模式过滤器
 function toggleModeFilter() {
     console.log('toggleModeFilter called, currentModeFilter:', currentModeFilter); // 调试日志
-    
+
     if (currentModeFilter === 'DSC') {
         currentModeFilter = 'TGA';
     } else if (currentModeFilter === 'TGA') {
@@ -638,9 +639,9 @@ function toggleModeFilter() {
     } else { // ALL 或其他情况
         currentModeFilter = 'DSC';
     }
-    
+
     console.log('After toggle, currentModeFilter is now:', currentModeFilter); // 调试日志
-    
+
     renderGallery();
     updateUI();
 }
@@ -649,7 +650,7 @@ function toggleModeFilter() {
 function toggleResponsiveMenu() {
     const menuPanel = document.getElementById('responsive-menu-panel');
     const isShown = menuPanel.classList.contains('show');
-    
+
     if (isShown) {
         menuPanel.classList.remove('show');
     } else {
@@ -660,13 +661,13 @@ function toggleResponsiveMenu() {
 // 处理菜单切换事件，同时在控制台打印1
 function handleMenuToggle(event) {
     console.log(1);
-    
+
     // 关闭下拉菜单（如果打开）
     const dropdownContent = document.querySelector('.dropdown-content');
     if (dropdownContent) {
         dropdownContent.classList.remove('show');
     }
-    
+
     toggleResponsiveMenu();
     // 阻止事件冒泡，防止立即被关闭
     event.stopPropagation();
@@ -675,18 +676,18 @@ function handleMenuToggle(event) {
 
 
 // 点击页面其他地方关闭响应式菜单
-document.addEventListener('click', function(event) {
+document.addEventListener('click', function (event) {
     const menuPanel = document.getElementById('responsive-menu-panel');
     const menuButton = document.querySelector('.menu-toggle-btn');
-    
+
     // 检查是否在小屏幕模式下
     const isMobileView = window.innerWidth <= 768;
-    
+
     // 只在小屏幕模式下处理菜单关闭逻辑
     if (isMobileView && menuPanel && menuPanel.classList.contains('show')) {
         // 如果点击的目标不在菜单面板内，也不在菜单按钮内，则关闭菜单
-        if (!menuPanel.contains(event.target) && 
-            !menuButton.contains(event.target) && 
+        if (!menuPanel.contains(event.target) &&
+            !menuButton.contains(event.target) &&
             event.target !== menuButton) {
             menuPanel.classList.remove('show');
         }
@@ -694,15 +695,15 @@ document.addEventListener('click', function(event) {
 });
 
 // 确保响应式菜单在窗口大小改变时正确处理
-window.addEventListener('resize', function() {
+window.addEventListener('resize', function () {
     const menuPanel = document.getElementById('responsive-menu-panel');
     const isMobileView = window.innerWidth <= 768;
-    
+
     // 如果在非移动视图中，强制关闭菜单
     if (!isMobileView && menuPanel.classList.contains('show')) {
         menuPanel.classList.remove('show');
     }
-    
+
     // 重新渲染分类以适应窗口大小变化
     renderCategories();
 });
@@ -713,7 +714,7 @@ function toggleSelectAll() {
     let visible = allImages;
     // 过滤掉空分类记录
     visible = visible.filter(img => !img.isEmptyCategory);
-    
+
     if (currentFilter !== 'all') {
         if (currentFilter === '其他') {
             // 选择所有没有分类的图片
@@ -728,17 +729,17 @@ function toggleSelectAll() {
             });
         }
     }
-    
+
     // 应用模式过滤
     if (currentModeFilter && currentModeFilter !== 'ALL') {
         visible = visible.filter(img => hasSuffix(img.name, currentModeFilter));
     }
-    
+
     const visibleCount = visible.filter(img => img.id != null).length;
-    
+
     // 计算当前模式下实际选中的图片数量（即同时满足过滤条件且被选中的图片）
     const selectedVisibleCount = visible.filter(img => selectedIds.has(img.id)).length;
-    
+
     // 如果当前模式下选中的图片数量等于当前模式下可见的图片数量，则取消全选，否则全选
     if (selectedVisibleCount === visibleCount && visibleCount > 0) {
         // 取消全选 - 批量操作
@@ -747,7 +748,7 @@ function toggleSelectAll() {
                 selectedIds.delete(img.id);
             }
         });
-        
+
         // 批量更新DOM - 只更新当前显示的相关卡片
         const cards = document.querySelectorAll('.img-card');
         cards.forEach(card => {
@@ -757,7 +758,7 @@ function toggleSelectAll() {
                 card.classList.remove('selected');
             }
         });
-        
+
         updateUI(); // 确保UI更新
         renderCategories(); // 重新渲染分类以更新统计信息
     } else {
@@ -767,7 +768,7 @@ function toggleSelectAll() {
                 selectedIds.add(img.id);
             }
         });
-        
+
         // 批量更新DOM - 只更新当前显示的相关卡片
         const cards = document.querySelectorAll('.img-card');
         cards.forEach(card => {
@@ -777,7 +778,7 @@ function toggleSelectAll() {
                 card.classList.add('selected');
             }
         });
-        
+
         updateUI(); // 确保UI更新
         renderCategories(); // 重新渲染分类以更新统计信息
     }
@@ -801,7 +802,7 @@ function printSelected() {
 
     // 获取选中的图片
     const selectedImages = allImages.filter(img => selectedIds.has(img.id) && !img.isEmptyCategory);
-    
+
     if (selectedImages.length === 0) {
         showToast('没有有效的图片可供打印', 'warning');
         return;
@@ -809,7 +810,7 @@ function printSelected() {
 
     // 创建打印窗口
     const printWindow = window.open('', '_blank');
-    
+
     // 构建打印页面的HTML内容（每张图片单独一页）
     const printContent = `
         <!DOCTYPE html>
@@ -902,7 +903,7 @@ function printSelected() {
         </body>
         </html>
     `;
-    
+
     // 写入内容到打印窗口
     printWindow.document.write(printContent);
     printWindow.document.close();
@@ -917,7 +918,7 @@ async function exportSelected() {
 
     // 获取选中的图片
     const selectedImages = allImages.filter(img => selectedIds.has(img.id) && !img.isEmptyCategory);
-    
+
     if (selectedImages.length === 0) {
         showToast('没有有效的图片可供导出', 'warning');
         return;
@@ -1085,22 +1086,22 @@ function showExportOptions(selectedImages) {
             font-size: 14px;
         }
     `;
-    
+
     document.head.appendChild(style);
     document.body.appendChild(dialog);
-    
+
     // 添加事件监听器，传递数据
     const zipOption = dialog.querySelector('.export-option-zip');
     const individualOption = dialog.querySelector('.export-option-individual');
-    
+
     // 将数据存储在闭包中
-    const selectedImagesInfo = selectedImages.map(img => ({...img, data: undefined}));
+    const selectedImagesInfo = selectedImages.map(img => ({ ...img, data: undefined }));
     const imageDataString = selectedImages.map(img => img.data).join("|||");
-    
+
     zipOption.addEventListener('click', () => {
         exportAsZip(selectedImagesInfo, imageDataString);
     });
-    
+
     individualOption.addEventListener('click', () => {
         exportIndividually(selectedImagesInfo, imageDataString);
     });
@@ -1110,7 +1111,7 @@ function showExportOptions(selectedImages) {
 function closeExportOptions() {
     const dialog = document.querySelector('.export-options-dialog');
     const style = document.getElementById('export-options-style');
-    
+
     if (dialog) dialog.remove();
     if (style) style.remove();
 }
@@ -1270,10 +1271,10 @@ function showImportDialog() {
             transform: scale(1.2);
         }
     `;
-    
+
     document.head.appendChild(style);
     document.body.appendChild(dialog);
-    
+
     // 添加拖拽上传功能
     const uploadArea = dialog.querySelector('.file-upload-area');
     uploadArea.addEventListener('dragover', (e) => {
@@ -1281,18 +1282,18 @@ function showImportDialog() {
         uploadArea.style.borderColor = '#3b82f6';
         uploadArea.style.backgroundColor = '#dbeafe';
     });
-    
+
     uploadArea.addEventListener('dragleave', (e) => {
         e.preventDefault();
         uploadArea.style.borderColor = '#cbd5e1';
         uploadArea.style.backgroundColor = 'transparent';
     });
-    
+
     uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadArea.style.borderColor = '#cbd5e1';
         uploadArea.style.backgroundColor = 'transparent';
-        
+
         const files = e.dataTransfer.files;
         if (files.length > 0 && files[0].name.endsWith('.zip')) {
             handleZipFile(files[0]);
@@ -1306,7 +1307,7 @@ function showImportDialog() {
 function closeImportDialog() {
     const dialog = document.querySelector('.import-dialog');
     const style = document.getElementById('import-dialog-style');
-    
+
     if (dialog) dialog.remove();
     if (style) style.remove();
 }
@@ -1324,77 +1325,77 @@ function handleFileImport(event) {
 // 处理ZIP文件导入
 async function handleZipFile(file) {
     showToast(`开始导入 ${file.name}...`, 'info');
-    
+
     try {
         // 读取ZIP文件
         const zipContent = await JSZip.loadAsync(file);
-        
+
         // 统计信息
         let totalFiles = 0;
         let importedFiles = 0;
         let skippedFiles = 0;
-        
+
         // 首先检查是否存在标签信息文件
         let tagsInfo = null;
         if (zipContent.files['tags.json']) {
             const tagsJson = await zipContent.files['tags.json'].async('text');
             tagsInfo = JSON.parse(tagsJson);
         }
-        
+
         // 遍历ZIP中的所有文件
         for (const [filename, zipEntry] of Object.entries(zipContent.files)) {
             // 忽略文件夹和标签信息文件
             if (zipEntry.dir || filename === 'tags.json') continue;
-            
+
             totalFiles++;
-            
+
             // 提取分类名称（路径的第一部分）
             const parts = filename.split('/');
             let category = '';
             let actualFilename = filename;
-            
+
             if (parts.length > 1) {
                 category = parts[0];  // 第一部分作为分类
                 actualFilename = parts.slice(1).join('/');  // 剩余部分作为文件名
             }
-            
+
             // 检查是否为图片文件
             const ext = actualFilename.split('.').pop().toLowerCase();
             if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
                 // 检查是否已存在同名文件
                 const existingImage = allImages.find(img => img.name === actualFilename);
-                
+
                 if (existingImage && !document.getElementById('import-overwrite-checkbox').checked) {
                     skippedFiles++;
                     continue; // 跳过已存在的文件
                 }
-                
+
                 // 读取文件内容
                 const imageData = await zipEntry.async('base64');
                 const base64Data = `data:image/${ext};base64,${imageData}`;
-                
+
                 // 创建一个Blob对象来模拟文件
                 const byteCharacters = atob(imageData);
                 const byteArrays = [];
-                
+
                 for (let offset = 0; offset < byteCharacters.length; offset += 512) {
                     const slice = byteCharacters.slice(offset, offset + 512);
-                    
+
                     const byteNumbers = new Array(slice.length);
                     for (let i = 0; i < slice.length; i++) {
                         byteNumbers[i] = slice.charCodeAt(i);
                     }
-                    
+
                     const byteArray = new Uint8Array(byteNumbers);
                     byteArrays.push(byteArray);
                 }
-                
-                const blob = new Blob(byteArrays, {type: `image/${ext}`});
+
+                const blob = new Blob(byteArrays, { type: `image/${ext}` });
                 blob.name = actualFilename; // 添加名称属性
-                
+
                 // 使用现有的saveImage函数保存图片到指定分类
                 await saveImage(blob, category || 'all'); // 使用'all'表示默认分类
-                
+
                 // 如果存在标签信息，为新保存的图片添加标签
                 if (tagsInfo) {
                     const tagInfo = tagsInfo.find(info => info.name === actualFilename);
@@ -1406,16 +1407,16 @@ async function handleZipFile(file) {
                         window.pendingTagUpdates.push({ name: actualFilename, tags: tagInfo.tags });
                     }
                 }
-                
+
                 importedFiles++;
             }
         }
-        
+
         // 重新加载图片列表以反映新导入的图片
         await loadImages();
         renderGallery();
         renderCategories();
-        
+
         // 处理待更新的标签
         if (window.pendingTagUpdates && window.pendingTagUpdates.length > 0) {
             for (const update of window.pendingTagUpdates) {
@@ -1423,16 +1424,16 @@ async function handleZipFile(file) {
             }
             // 清空待更新列表
             window.pendingTagUpdates = [];
-            
+
             // 再次重新加载以确保标签更新生效
             await loadImages();
             renderGallery();
             renderCategories();
         }
-        
+
         showToast(`导入完成：成功导入 ${importedFiles} 个文件，跳过 ${skippedFiles} 个文件`, 'success');
         closeImportDialog();
-        
+
     } catch (error) {
         console.error('导入失败:', error);
         showToast('导入失败，请重试', 'error');
@@ -1445,55 +1446,55 @@ async function exportAsZip(selectedImagesInfo, imageDataString) {
     // 重新构建完整图片数组（因为JSON序列化丢失了data URL）
     const selectedImages = [];
     const imageDataArray = imageDataString.split('|||');
-    
+
     for (let i = 0; i < selectedImagesInfo.length; i++) {
         selectedImages.push({
             ...selectedImagesInfo[i],
             data: imageDataArray[i]
         });
     }
-    
+
     showToast(`开始导出 ${selectedImages.length} 张图片...`, 'info');
 
     try {
         const zip = new JSZip();
-        
+
         // 按分类组织图片
         const imagesByCategory = {};
-        
+
         for (let i = 0; i < selectedImages.length; i++) {
             const img = selectedImages[i];
             const category = img.category || '未分类'; // 如果没有分类，默认为"未分类"
-            
+
             if (!imagesByCategory[category]) {
                 imagesByCategory[category] = [];
             }
-            
+
             imagesByCategory[category].push(img);
         }
-        
+
         // 为每个分类创建子文件夹并将图片放入
         for (const [category, categoryImages] of Object.entries(imagesByCategory)) {
             for (const img of categoryImages) {
                 const imgData = img.data;
-                
+
                 // 提取文件扩展名
                 const extension = img.name.split('.').pop().toLowerCase();
-                
+
                 // 从Data URL中提取二进制数据
                 const base64Data = imgData.split(',')[1];
                 const binaryData = atob(base64Data);
                 const arrayBuffer = new Uint8Array(binaryData.length);
-                
+
                 for (let j = 0; j < binaryData.length; j++) {
                     arrayBuffer[j] = binaryData.charCodeAt(j);
                 }
-                
+
                 // 添加图片到对应分类的文件夹中
                 zip.file(`${category}/${removeFileExtension(img.name)}.${extension}`, arrayBuffer, { binary: true });
             }
         }
-        
+
         // 创建标签信息文件
         const tagsInfo = [];
         for (const img of selectedImages) {
@@ -1504,7 +1505,7 @@ async function exportAsZip(selectedImagesInfo, imageDataString) {
                 });
             }
         }
-        
+
         // 如果有标签信息，创建tags.json文件
         if (tagsInfo.length > 0) {
             const tagsJson = JSON.stringify(tagsInfo, null, 2);
@@ -1522,10 +1523,10 @@ async function exportAsZip(selectedImagesInfo, imageDataString) {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        
+
         // 释放URL对象
         URL.revokeObjectURL(url);
-        
+
         showToast(`成功导出 ${selectedImages.length} 张图片（按分类组织，包含标签信息）`, 'success');
     } catch (error) {
         console.error('导出失败:', error);
@@ -1540,14 +1541,14 @@ function exportIndividually(selectedImagesInfo, imageDataString) {
     // 重新构建完整图片数组（因为JSON序列化丢失了data URL）
     const selectedImages = [];
     const imageDataArray = imageDataString.split('|||');
-    
+
     for (let i = 0; i < selectedImagesInfo.length; i++) {
         selectedImages.push({
             ...selectedImagesInfo[i],
             data: imageDataArray[i]
         });
     }
-    
+
     showToast(`开始下载 ${selectedImages.length} 张图片...`, 'info');
 
     // 逐个下载图片
@@ -1561,7 +1562,7 @@ function exportIndividually(selectedImagesInfo, imageDataString) {
             document.body.removeChild(a);
         }, index * 100); // 间隔100毫秒下载，避免浏览器拦截
     });
-    
+
     showToast(`已启动下载 ${selectedImages.length} 张图片`, 'success');
     closeExportOptions();
 }
@@ -1570,14 +1571,14 @@ function filterCategory(cat) {
     currentFilter = cat;
     // 重置标签筛选
     currentTagFilters = [];
-    
+
     // 正确处理分类名称显示
     let displayCat = cat;
     if (cat === 'all') {
         displayCat = '全部图片';
     }
     document.getElementById('current-category').innerText = displayCat;
-    
+
     // 更新"全部图片"按钮的选中状态
     const allBtn = document.getElementById('all-category-btn');
     if (allBtn) {
@@ -1587,7 +1588,7 @@ function filterCategory(cat) {
             allBtn.classList.remove('active');
         }
     }
-    
+
     // 切换分类时清除选中，或保留选中（此处选择保留）
     renderCategories();  // 这会调用 renderTags()
     renderGallery();
@@ -1634,26 +1635,26 @@ function renderCategoriesList() {
     // 获取所有唯一的主分类
     const emptyCategoryRecords = allImages.filter(img => img.isEmptyCategory && img.name.startsWith('__EMPTY_IMAGE__')).map(img => img.category);
     const realCategories = allImages.filter(img => !img.isEmptyCategory).map(img => img.category);
-    
+
     // 合并所有分类并去重，排除空字符串（无分类）
     let allMainCategories = [...new Set([...emptyCategoryRecords, ...realCategories])].filter(cat => cat !== undefined && cat !== '' && cat !== '全部' && cat !== '其他');
-    
+
     // 确保 "其他" 分类始终存在，如果没有则创建一个空的
     if (!allMainCategories.includes('其他')) {
         // 添加到数组末尾，确保它出现在列表底部
         allMainCategories.push('其他');
     }
-    
+
     // 排序：普通分类按字母顺序排列，"其他"放在最后
     allMainCategories.sort();
-    
+
     const container = document.getElementById('categories-list');
-    
+
     if (allMainCategories.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>暂无主分类</p></div>';
         return;
     }
-    
+
     container.innerHTML = allMainCategories.map(cat => {
         // 计算该分类下的图片数量（空分类也计算）
         let imageCount = 0;
@@ -1663,13 +1664,13 @@ function renderCategoriesList() {
         } else {
             imageCount = allImages.filter(img => img.category === cat && !img.isEmptyCategory).length;
         }
-        
+
         const displayName = cat;
-        
+
         // "全部"和"其他"分类不能被删除
         const canDelete = cat !== '全部' && cat !== '其他';
         const canRename = cat !== '' && cat !== '全部' && cat !== '其他';
-        
+
         return `
             <div class="item-row">
                 <div class="item-info">
@@ -1692,15 +1693,15 @@ function renderTagsListNew() {
         .filter(img => img.tags && img.tags.length > 0)
         .flatMap(img => img.tags)
     )];
-    
+
     // 定义优先显示的标签
     const priorityTags = ['PBT', 'PET', 'PBT+PET', 'PC', 'PA6', 'PA66'];
-    
+
     // 对标签进行排序：优先标签在前，其余按字母顺序
     const allTags = allTagsArray.sort((a, b) => {
         const aIsPriority = priorityTags.includes(a);
         const bIsPriority = priorityTags.includes(b);
-        
+
         // 如果两者都是优先标签或都不是优先标签，按在priorityTags中的顺序或字母顺序排序
         if (aIsPriority && bIsPriority) {
             return priorityTags.indexOf(a) - priorityTags.indexOf(b);
@@ -1712,18 +1713,18 @@ function renderTagsListNew() {
             return a.localeCompare(b); // 都不是优先标签时按字母顺序
         }
     });
-    
+
     const container = document.getElementById('tags-list');
-    
+
     if (allTags.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>暂无标签</p></div>';
         return;
     }
-    
+
     container.innerHTML = allTags.map(tag => {
         // 计算该标签下的图片数量
         const imageCount = allImages.filter(img => img.tags && img.tags.includes(tag)).length;
-        
+
         return `
             <div class="item-row">
                 <div class="item-info">
@@ -1743,54 +1744,54 @@ function renderTagsListNew() {
 function setupCategoryManagementEvents() {
     // 标签页切换
     document.querySelectorAll('.tab-link').forEach(tab => {
-        tab.addEventListener('click', function() {
+        tab.addEventListener('click', function () {
             const tabName = this.getAttribute('data-tab');
-            
+
             // 更新标签页
             document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
-            
+
             // 显示对应面板
             document.querySelectorAll('.tab-pane-new').forEach(pane => pane.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
         });
     });
-    
+
     // 关闭模态窗口
     const closeBtn = document.getElementById('close-category-modal');
     if (closeBtn) {
         closeBtn.removeEventListener('click', closeCategoryManagementModal); // 移除可能已存在的事件监听器
         closeBtn.addEventListener('click', closeCategoryManagementModal);
     }
-    
+
     // 添加分类按钮
     const addCategoryBtn = document.getElementById('add-category-btn');
     if (addCategoryBtn) {
         addCategoryBtn.removeEventListener('click', handleAddCategoryClick); // 移除可能已存在的事件监听器
         addCategoryBtn.addEventListener('click', handleAddCategoryClick);
     }
-    
+
     // 添加标签按钮
     const addTagBtn = document.getElementById('add-tag-btn');
     if (addTagBtn) {
         addTagBtn.removeEventListener('click', handleAddTagClick); // 移除可能已存在的事件监听器
         addTagBtn.addEventListener('click', handleAddTagClick);
     }
-    
+
     // 回车添加分类
     const categoryInput = document.getElementById('new-category-input');
     if (categoryInput) {
         categoryInput.removeEventListener('keypress', handleCategoryKeyPress); // 移除可能已存在的事件监听器
         categoryInput.addEventListener('keypress', handleCategoryKeyPress);
     }
-    
+
     // 回车添加标签
     const tagInput = document.getElementById('new-tag-input-modal');
     if (tagInput) {
         tagInput.removeEventListener('keypress', handleTagKeyPress); // 移除可能已存在的事件监听器
         tagInput.addEventListener('keypress', handleTagKeyPress);
     }
-    
+
     setupDialogEvents();
 }
 
@@ -1798,12 +1799,12 @@ function setupCategoryManagementEvents() {
 function handleAddCategoryClick() {
     const input = document.getElementById('new-category-input');
     const categoryName = input.value.trim();
-    
+
     if (!categoryName) {
         showToast('请输入分类名称', 'warning');
         return;
     }
-    
+
     addCategory(categoryName);
     input.value = '';
 }
@@ -1812,12 +1813,12 @@ function handleAddCategoryClick() {
 function handleAddTagClick() {
     const input = document.getElementById('new-tag-input-modal');
     const tagName = input.value.trim();
-    
+
     if (!tagName) {
         showToast('请输入标签名称', 'warning');
         return;
     }
-    
+
     addTag(tagName);
     input.value = '';
 }
@@ -1842,14 +1843,14 @@ function setupDialogEvents() {
     document.getElementById('close-rename-dialog').addEventListener('click', closeRenameDialog);
     document.getElementById('cancel-rename').addEventListener('click', closeRenameDialog);
     document.getElementById('confirm-rename').addEventListener('click', executeRename);
-    
+
     // 确认对话框事件
     document.getElementById('close-confirm-dialog').addEventListener('click', closeConfirmDialog);
     document.getElementById('cancel-confirm').addEventListener('click', closeConfirmDialog);
     document.getElementById('confirm-action').addEventListener('click', executeConfirmAction);
-    
+
     // 重命名输入框回车事件
-    document.getElementById('rename-input').addEventListener('keypress', function(e) {
+    document.getElementById('rename-input').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             executeRename();
         }
@@ -1863,14 +1864,14 @@ async function addCategory(name) {
         showToast(`${name} 是系统保留分类，不可添加`, 'error');
         return;
     }
-    
+
     // 检查是否已存在
     const existingCategories = [...new Set(allImages.map(img => img.category).filter(cat => cat))];
     if (existingCategories.includes(name)) {
         showToast('该分类已存在', 'warning');
         return;
     }
-    
+
     // 添加一个空分类记录（用于显示分类列表）
     const emptyCategoryRecord = {
         name: '__EMPTY_IMAGE__' + name,
@@ -1880,17 +1881,17 @@ async function addCategory(name) {
         date: new Date().toLocaleString(),
         isEmptyCategory: true
     };
-    
+
     const transaction = db.transaction([STORE_NAME], "readwrite");
     transaction.objectStore(STORE_NAME).add(emptyCategoryRecord);
-    
+
     transaction.oncomplete = async () => {
         await loadImages(); // 重新加载数据
         renderCategories(); // 刷新侧边栏分类列表
-        
+
         // 强制更新分类管理弹窗内容（不管是否打开，都准备更新）
         renderCategoryManagementContent();
-        
+
         showToast(`主分类 "${name}" 已添加`, 'success');
     };
 }
@@ -1906,11 +1907,11 @@ async function addTag(name) {
         showToast('该标签已存在', 'warning');
         return;
     }
-    
+
     // 为了确保标签列表能被正确显示，我们需要在某个图片上添加标签，或者创建一个临时记录
     // 但实际上，标签只是在图片上使用的，所以这里只需提醒用户
     showToast(`标签 "${name}" 已添加，您可以在上传图片或编辑图片详情时使用此标签`, 'success');
-    
+
     // 强制更新分类管理弹窗内容（不管是否打开，都准备更新）
     await loadImages();
     renderCategoryManagementContent();
@@ -1923,7 +1924,7 @@ let renameOldName = null;
 function prepareRename(name, type) {
     renameType = type;
     renameOldName = name;
-    
+
     document.getElementById('rename-input').value = name;
     document.getElementById('rename-dialog').style.display = 'flex';
     document.getElementById('rename-input').focus();
@@ -1932,17 +1933,17 @@ function prepareRename(name, type) {
 // 执行重命名
 function executeRename() {
     const newName = document.getElementById('rename-input').value.trim();
-    
+
     if (!newName) {
         showToast('请输入新名称', 'warning');
         return;
     }
-    
+
     if (renameOldName === newName) {
         closeRenameDialog();
         return;
     }
-    
+
     if (renameType === 'category') {
         renameCategory(renameOldName, newName);
     } else if (renameType === 'tag') {
@@ -1957,19 +1958,19 @@ async function renameCategory(oldName, newName) {
         showToast(`${newName} 是系统保留分类，不可使用`, 'error');
         return;
     }
-    
+
     // 检查新名称是否已存在
     const existingCategories = [...new Set(allImages.map(img => img.category).filter(cat => cat))];
     if (existingCategories.includes(newName)) {
         showToast('该分类名称已存在', 'warning');
         return;
     }
-    
+
     // 更新数据库中所有使用该分类的图片
     const transaction = db.transaction([STORE_NAME], "readwrite");
     const objectStore = transaction.objectStore(STORE_NAME);
-    
-    objectStore.openCursor().onsuccess = async function(event) {
+
+    objectStore.openCursor().onsuccess = async function (event) {
         const cursor = event.target.result;
         if (cursor) {
             const value = cursor.value;
@@ -1986,10 +1987,10 @@ async function renameCategory(oldName, newName) {
         } else {
             await loadImages(); // 重新加载数据
             renderCategories(); // 刷新侧边栏分类列表
-            
+
             // 强制更新分类管理弹窗内容（不管是否打开，都准备更新）
             renderCategoryManagementContent();
-            
+
             showToast(`已将分类 "${oldName}" 重命名为 "${newName}"`, 'success');
             closeRenameDialog();
         }
@@ -2007,12 +2008,12 @@ async function renameTagNew(oldName, newName) {
         showToast('该标签名称已存在', 'warning');
         return;
     }
-    
+
     // 更新数据库中所有使用该标签的图片
     const transaction = db.transaction([STORE_NAME], "readwrite");
     const objectStore = transaction.objectStore(STORE_NAME);
-    
-    objectStore.openCursor().onsuccess = async function(event) {
+
+    objectStore.openCursor().onsuccess = async function (event) {
         const cursor = event.target.result;
         if (cursor) {
             const value = cursor.value;
@@ -2024,10 +2025,10 @@ async function renameTagNew(oldName, newName) {
             cursor.continue();
         } else {
             await loadImages(); // 重新加载数据
-            
+
             // 强制更新分类管理弹窗内容（不管是否打开，都准备更新）
             renderCategoryManagementContent();
-            
+
             showToast(`已将标签 "${oldName}" 重命名为 "${newName}"`, 'success');
             closeRenameDialog();
         }
@@ -2041,12 +2042,12 @@ function prepareDelete(name, type) {
         showToast(`${name} 是系统保留分类，不可删除`, 'error');
         return;
     }
-    
+
     deleteType = type;
     deleteName = name;
-    
+
     const displayName = type === 'category' ? (name || '无分类') : name;
-    document.getElementById('confirm-message').textContent = 
+    document.getElementById('confirm-message').textContent =
         `确定要删除${type === 'category' ? '分类' : '标签'} "${displayName}" 吗？此操作不可撤销。`;
     document.getElementById('confirm-dialog').style.display = 'flex';
 }
@@ -2067,8 +2068,8 @@ function executeConfirmAction() {
 async function deleteCategory(name) {
     const transaction = db.transaction([STORE_NAME], "readwrite");
     const objectStore = transaction.objectStore(STORE_NAME);
-    
-    objectStore.openCursor().onsuccess = async function(event) {
+
+    objectStore.openCursor().onsuccess = async function (event) {
         const cursor = event.target.result;
         if (cursor) {
             const value = cursor.value;
@@ -2086,10 +2087,10 @@ async function deleteCategory(name) {
         } else {
             await loadImages(); // 重新加载数据
             renderCategories(); // 刷新侧边栏分类列表
-            
+
             // 强制更新分类管理弹窗内容（不管是否打开，都准备更新）
             renderCategoryManagementContent();
-            
+
             showToast(`分类 "${name || '无分类'}" 已删除`, 'success');
             closeConfirmDialog();
         }
@@ -2101,8 +2102,8 @@ async function updateImageTags(imageId, newTags) {
     return new Promise((resolve) => {
         const transaction = db.transaction([STORE_NAME], "readwrite");
         const objectStore = transaction.objectStore(STORE_NAME);
-        
-        objectStore.openCursor().onsuccess = function(event) {
+
+        objectStore.openCursor().onsuccess = function (event) {
             const cursor = event.target.result;
             if (cursor) {
                 const value = cursor.value;
@@ -2125,8 +2126,8 @@ async function updateImageTagsByName(imageName, newTags) {
     return new Promise((resolve) => {
         const transaction = db.transaction([STORE_NAME], "readwrite");
         const objectStore = transaction.objectStore(STORE_NAME);
-        
-        objectStore.openCursor().onsuccess = function(event) {
+
+        objectStore.openCursor().onsuccess = function (event) {
             const cursor = event.target.result;
             if (cursor) {
                 const value = cursor.value;
@@ -2151,16 +2152,16 @@ async function deleteSelectedImages() {
         closeConfirmDialog();
         return;
     }
-    
+
     const transaction = db.transaction([STORE_NAME], "readwrite");
     const objectStore = transaction.objectStore(STORE_NAME);
-    
+
     // 将选中的ID转换为数组以便处理
     const idsToDelete = Array.from(selectedIds);
     let deletedCount = 0;
-    
+
     // 遍历数据库中的所有记录，删除匹配的图片
-    objectStore.openCursor().onsuccess = async function(event) {
+    objectStore.openCursor().onsuccess = async function (event) {
         const cursor = event.target.result;
         if (cursor) {
             const value = cursor.value;
@@ -2175,10 +2176,10 @@ async function deleteSelectedImages() {
             await loadImages(); // 重新加载数据
             renderGallery(); // 刷新图片网格
             renderCategories(); // 刷新侧边栏分类列表
-            
+
             // 清空选中状态
             selectedIds.clear();
-            
+
             showToast(`已删除 ${deletedCount} 张图片`, 'success');
             closeConfirmDialog();
         }
@@ -2189,8 +2190,8 @@ async function deleteSelectedImages() {
 async function deleteTagNew(name) {
     const transaction = db.transaction([STORE_NAME], "readwrite");
     const objectStore = transaction.objectStore(STORE_NAME);
-    
-    objectStore.openCursor().onsuccess = async function(event) {
+
+    objectStore.openCursor().onsuccess = async function (event) {
         const cursor = event.target.result;
         if (cursor) {
             const value = cursor.value;
@@ -2202,10 +2203,10 @@ async function deleteTagNew(name) {
             cursor.continue();
         } else {
             await loadImages(); // 重新加载数据
-            
+
             // 强制更新分类管理弹窗内容（不管是否打开，都准备更新）
             renderCategoryManagementContent();
-            
+
             showToast(`标签 "${name}" 已删除`, 'success');
             closeConfirmDialog();
         }
@@ -2217,9 +2218,9 @@ function closeRenameDialog() {
     document.getElementById('rename-dialog').style.display = 'none';
     renameType = null;
     renameOldName = null;
-    
+
     // 刷新分类管理内容以确保界面同步
-    if(document.getElementById('category-management-modal').style.display === 'flex') {
+    if (document.getElementById('category-management-modal').style.display === 'flex') {
         renderCategoryManagementContent();
     }
 }
@@ -2229,20 +2230,20 @@ function closeConfirmDialog() {
     document.getElementById('confirm-dialog').style.display = 'none';
     deleteType = null;
     deleteName = null;
-    
+
     // 刷新分类管理内容以确保界面同步
-    if(document.getElementById('category-management-modal').style.display === 'flex') {
+    if (document.getElementById('category-management-modal').style.display === 'flex') {
         renderCategoryManagementContent();
     }
 }
 
 // 处理下拉菜单
-document.addEventListener('click', function(event) {
+document.addEventListener('click', function (event) {
     const dropdown = document.querySelector('.dropdown');
     const dropdownContent = document.querySelector('.dropdown-content');
     const dropdownButton = document.querySelector('.btn-more');
     const responsiveMenu = document.getElementById('responsive-menu-panel');
-    
+
     // 检查点击是否在下拉菜单内部
     if (dropdown && !dropdown.contains(event.target)) {
         // 如果点击在下拉菜单外部，则关闭下拉菜单
@@ -2250,27 +2251,27 @@ document.addEventListener('click', function(event) {
             dropdownContent.classList.remove('show');
         }
     }
-    
+
     // 如果点击在下拉菜单外部，同时关闭响应式菜单面板
-    if (responsiveMenu && !responsiveMenu.contains(event.target) && 
+    if (responsiveMenu && !responsiveMenu.contains(event.target) &&
         !document.querySelector('.menu-toggle-btn').contains(event.target)) {
         responsiveMenu.classList.remove('show');
     }
 });
 
 // 点击更多按钮时切换下拉菜单
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const moreButton = document.querySelector('.btn-more');
     if (moreButton) {
-        moreButton.addEventListener('click', function(event) {
+        moreButton.addEventListener('click', function (event) {
             event.stopPropagation(); // 阻止事件冒泡
-            
+
             // 关闭响应式菜单面板（如果打开）
             const responsiveMenu = document.getElementById('responsive-menu-panel');
             if (responsiveMenu) {
                 responsiveMenu.classList.remove('show');
             }
-            
+
             const dropdownContent = document.querySelector('.dropdown-content');
             if (dropdownContent) {
                 dropdownContent.classList.toggle('show');
@@ -2284,7 +2285,7 @@ function updateResponsiveMenuForMobile() {
     const responsiveMenu = document.querySelector('.responsive-menu-panel');
     const mobileContainer = document.querySelector('.mobile-search-sort-container');
     if (!responsiveMenu || !mobileContainer) return;
-    
+
     // 检查是否是小屏幕
     if (window.innerWidth <= 768) {
         // 显示移动搜索和排序容器
@@ -2304,17 +2305,17 @@ window.addEventListener('resize', updateResponsiveMenuForMobile);
 document.addEventListener('DOMContentLoaded', updateResponsiveMenuForMobile);
 
 // 页面加载完成后初始化
-window.onload = function() {
+window.onload = function () {
     initDB().then(() => {
         loadImages();
         initAIAnalysis();
-        
+
         // 设置对话框事件监听器
         setupDialogEvents();
-        
+
         // 添加文件上传事件监听器
         const fileInput = document.getElementById('fileInput');
-        fileInput.addEventListener('change', function(e) {
+        fileInput.addEventListener('change', function (e) {
             const files = e.target.files;
             if (files.length > 0) {
                 for (let i = 0; i < files.length; i++) {
@@ -2324,29 +2325,29 @@ window.onload = function() {
                 fileInput.value = '';
             }
         });
-        
+
         // 添加拖拽上传事件监听器
         const gallery = document.getElementById('gallery');
         const mainDiv = document.getElementById('main');
-        
+
         // 阻止浏览器默认的拖拽行为
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             gallery.addEventListener(eventName, preventDefaults, false);
             mainDiv.addEventListener(eventName, preventDefaults, false);
         });
-        
+
         // 高亮拖拽区域
         ['dragenter', 'dragover'].forEach(eventName => {
             gallery.addEventListener(eventName, highlight, false);
         });
-        
+
         ['dragleave', 'drop'].forEach(eventName => {
             gallery.addEventListener(eventName, unhighlight, false);
         });
-        
+
         // 处理文件拖拽释放
         gallery.addEventListener('drop', handleDrop, false);
-        
+
         // 添加全局鼠标事件监听器用于对比页面的图片拖动
         document.addEventListener('mousemove', handleGlobalMouseMove);
         document.addEventListener('mouseup', handleGlobalMouseUp);
@@ -2356,32 +2357,32 @@ window.onload = function() {
 // 全局鼠标移动事件处理器
 function handleGlobalMouseMove(e) {
     if (!dragState.isDragging || !dragState.element) return;
-    
+
     const imgEl = dragState.element;
     const globalIndex = dragState.globalIndex;
-    
+
     const newX = e.clientX - dragState.startX + dragState.initialX;
     const newY = e.clientY - dragState.startY + dragState.initialY;
-    
+
     // 获取图片容器的尺寸
     const containerRect = imgEl.parentElement.getBoundingClientRect();
     const imgRect = imgEl.getBoundingClientRect();
-    
+
     // 计算容器和图片的实际尺寸
     const containerWidth = containerRect.width;
     const containerHeight = containerRect.height;
     const imgNaturalWidth = imgEl.naturalWidth || imgRect.width * (imageZoomLevels[globalIndex] / 100);
     const imgNaturalHeight = imgEl.naturalHeight || imgRect.height * (imageZoomLevels[globalIndex] / 100);
-    
+
     // 计算缩放后的图片尺寸
     const zoomFactor = imageZoomLevels[globalIndex] / 100;
     const scaledWidth = imgNaturalWidth * zoomFactor;
     const scaledHeight = imgNaturalHeight * zoomFactor;
-    
+
     // 计算边界限制
     let boundedX = newX;
     let boundedY = newY;
-    
+
     // 水平边界 - 确保图片不会完全脱离容器
     if (scaledWidth > containerWidth) {
         // 如果图片比容器宽，限制移动范围
@@ -2390,7 +2391,7 @@ function handleGlobalMouseMove(e) {
         // 如果图片比容器窄，限制在容器中央附近（允许在一定范围内移动）
         boundedX = Math.max(containerWidth - scaledWidth, Math.min(0, newX));
     }
-    
+
     // 垂直边界 - 确保图片不会完全脱离容器
     if (scaledHeight > containerHeight) {
         // 如果图片比容器高，限制移动范围
@@ -2399,11 +2400,11 @@ function handleGlobalMouseMove(e) {
         // 如果图片比容器矮，限制在容器中央附近（允许在一定范围内移动）
         boundedY = Math.max(containerHeight - scaledHeight, Math.min(0, newY));
     }
-    
+
     // 更新拖动状态
     dragState.currentX = boundedX;
     dragState.currentY = boundedY;
-    
+
     // 更新图片样式
     imgEl.style.transform = `translate(${boundedX}px, ${boundedY}px) scale(${zoomFactor})`;
 }
@@ -2444,7 +2445,7 @@ function unhighlight(e) {
 function handleDrop(e) {
     const dt = e.dataTransfer;
     const files = dt.files;
-    
+
     // 检查是否有文件被拖入（外部文件拖入），而不是页面内的元素拖动
     if (files.length > 0) {
         for (let i = 0; i < files.length; i++) {
@@ -2455,7 +2456,7 @@ function handleDrop(e) {
             }
         }
     }
-    
+
     // 移除高亮
     unhighlight(e);
 }
@@ -2464,7 +2465,7 @@ function handleDrop(e) {
 async function saveImageWithCurrentTags(file, category = '', tags = []) {
     // 等待图片列表加载完成
     await waitForImagesLoaded();
-    
+
     // 检查是否存在相同名称的图片
     if (checkDuplicateImage(file.name)) {
         // 如果存在相同名称的图片，询问用户是否覆盖
@@ -2499,14 +2500,14 @@ async function updateExistingImageWithTags(file, category = '', tags = []) {
     const reader = new FileReader();
     reader.onload = (e) => {
         const newData = e.target.result;
-        
+
         // 开始事务以查找并更新现有图片
         const transaction = db.transaction([STORE_NAME], "readwrite");
         const store = transaction.objectStore(STORE_NAME);
-        
+
         // 查找同名图片
         const request = store.openCursor();
-        request.onsuccess = function(event) {
+        request.onsuccess = function (event) {
             const cursor = event.target.result;
             if (cursor) {
                 const item = cursor.value;
@@ -2516,10 +2517,10 @@ async function updateExistingImageWithTags(file, category = '', tags = []) {
                     item.category = category || item.category; // 如果提供了新分类，则更新分类
                     item.tags = [...tags]; // 更新标签
                     item.date = new Date().toLocaleString(); // 更新日期
-                    
+
                     // 更新数据库中的记录
                     cursor.update(item);
-                    
+
                     // 完成后重新加载数据
                     transaction.oncomplete = () => {
                         loadImages();
@@ -2543,7 +2544,7 @@ let imageZoomLevels = {}; // 存储每张图片的缩放级别
 
 function openCompare() {
     if (selectedIds.size === 0) return showToast("请先选择至少一张图片进行对比", 'warning');
-    
+
     compareImages = allImages.filter(img => selectedIds.has(img.id));
     currentPage = 0;
     zoomIndex = 0; // 初始化缩放索引
@@ -2622,14 +2623,14 @@ function renderComparePage() {
     const endIdx = Math.min(startIdx + IMAGES_PER_PAGE, compareImages.length);
     const pageImages = compareImages.slice(startIdx, endIdx);
     const totalPages = Math.ceil(compareImages.length / IMAGES_PER_PAGE);
-    
+
     // 根据当前页实际图片数量确定布局类名
     const layoutClass = 'layout-' + pageImages.length;
-    
+
     // 创建网格容器
     const grid = document.createElement('div');
     grid.className = `compare-grid ${layoutClass}`;
-    
+
     // 添加图片项
     grid.innerHTML = pageImages.map((img, idx) => {
         const globalIndex = startIdx + idx;
@@ -2647,50 +2648,50 @@ function renderComparePage() {
                 onerror="this.onerror=null;this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjhGOEY4Ii8+Cjx0ZXh0IHg9IjIwMCIgeT0iMTUwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSBOb3QgRm91bmQ8L3RleHQ+Cjwvc3ZnPg==';">
         </div>
     `}).join('');
-    
+
     // 清空容器并添加网格
     container.innerHTML = '';
     container.appendChild(grid);
-    
+
     // 为当前页图片绑定滚轮缩放事件和拖动事件（移除点击事件，防止误触）
     setTimeout(() => {
         const imgs = grid.querySelectorAll('img');
         imgs.forEach((imgEl, idx) => {
             const globalIndex = startIdx + idx;
-            
+
             // 滚轮事件 - 用于缩放图片
             imgEl.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                
+
                 const delta = e.deltaY > 0 ? -10 : 10;
                 const currentZoom = imageZoomLevels[globalIndex] || 100;
                 let newZoom = currentZoom + delta;
-                
+
                 // 限制缩放范围 50% - 300%
                 newZoom = Math.max(50, Math.min(300, newZoom));
-                
+
                 // 更新缩放级别
                 imageZoomLevels[globalIndex] = newZoom;
-                
+
                 // 重置位置，因为缩放后位置可能会变化
-                if(dragState.globalIndex === globalIndex) {
+                if (dragState.globalIndex === globalIndex) {
                     dragState.initialX = 0;
                     dragState.initialY = 0;
                 }
-                
+
                 // 更新图片样式
                 imgEl.style.transform = `translate(${dragState.globalIndex === globalIndex ? dragState.currentX || 0 : 0}px, ${dragState.globalIndex === globalIndex ? dragState.currentY || 0 : 0}px) scale(${newZoom / 100})`;
             });
-            
+
             // 鼠标按下事件 - 开始拖动
             imgEl.addEventListener('mousedown', (e) => {
                 // 如果已经有其他图片正在被拖动，先结束之前的拖动
-                if(dragState.isDragging && dragState.element !== imgEl) {
-                    if(dragState.element) {
+                if (dragState.isDragging && dragState.element !== imgEl) {
+                    if (dragState.element) {
                         dragState.element.style.cursor = 'grab';
                     }
                 }
-                
+
                 // 设置当前拖动状态
                 dragState.isDragging = true;
                 dragState.element = imgEl;
@@ -2699,7 +2700,7 @@ function renderComparePage() {
                 dragState.startY = e.clientY;
                 dragState.initialX = dragState.currentX || 0;
                 dragState.initialY = dragState.currentY || 0;
-                
+
                 imgEl.style.cursor = 'grabbing';
                 e.preventDefault();
             });
@@ -2734,7 +2735,7 @@ function openZoomByIndex(index) {
 
     overlay.classList.remove('hidden');
     overlay.style.display = 'flex';
-    
+
     // 确保当前选中的缩略图在可视区域内
     setTimeout(() => {
         const activeThumb = list.querySelector('.zoom-thumb.active');
@@ -2742,18 +2743,18 @@ function openZoomByIndex(index) {
             activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }, 50);
-    
+
     // 为放大覆盖层添加滚轮事件监听器，用于切换图片
     overlay.onwheel = (e) => {
         // 检查鼠标是否在右侧AI内容区域
         const rightPanel = overlay.querySelector('.zoom-right-panel');
         const isInRightPanel = rightPanel && rightPanel.contains(e.target);
-        
+
         // 如果鼠标在右侧AI内容区域，不阻止默认行为，允许滚动
         if (isInRightPanel) {
             return;
         }
-        
+
         // 否则，阻止默认行为，用于切换图片
         e.preventDefault();
         if (e.deltaY < 0) {
@@ -2801,51 +2802,51 @@ function openDetail(id, event) {
     if (event) {
         event.stopPropagation();
     }
-    
+
     const img = allImages.find(i => i.id === id);
     if (!img) return;
-    
+
     currentDetailId = id;
-    
+
     // 填充详情信息
     document.getElementById('detail-image').src = img.data;
     document.getElementById('detail-image').setAttribute('draggable', 'false');
     document.getElementById('detail-name').value = removeFileExtension(img.name || '');
     document.getElementById('detail-date').value = img.date || '';
-    
+
     // 渲染标签列表
     renderDetailTags(img.tags || []);
-    
+
     // 填充分类选项
     const categorySelect = document.getElementById('detail-category');
-    
+
     // 获取所有主分类（排除空分类）
     const allCategories = [...new Set(allImages.map(img => img.category).filter(cat => cat))];
-    
+
     // 确保"其他"分类始终存在
     if (!allCategories.includes('其他')) {
         allCategories.push('其他');
     }
-    
+
     // 排序分类列表，"其他"放在最后
     allCategories.sort((a, b) => {
         if (a === '其他') return 1;
         if (b === '其他') return -1;
         return a.localeCompare(b);
     });
-    
+
     // 生成选项列表，如果图片原来没有分类，将其归类为"其他"
     let selectedCategory = img.category;
     if (!img.category) {
         selectedCategory = '其他';
     }
-    
-    categorySelect.innerHTML = allCategories.map(cat => 
+
+    categorySelect.innerHTML = allCategories.map(cat =>
         `<option value="${cat}" ${cat === selectedCategory ? 'selected' : ''}>${cat}</option>`
     ).join('');
-    
 
-    
+
+
     // 显示弹窗
     document.getElementById('detail-overlay').style.display = 'flex';
 }
@@ -2854,12 +2855,12 @@ function openDetail(id, event) {
 function renderDetailTags(tags) {
     // 定义优先显示的标签
     const priorityTags = ['PBT', 'PET', 'PBT+PET', 'PC', 'PA6', 'PA66'];
-    
+
     // 对标签进行排序：优先标签在前，其余按字母顺序
     const sortedTags = [...tags].sort((a, b) => {
         const aIsPriority = priorityTags.includes(a);
         const bIsPriority = priorityTags.includes(b);
-        
+
         // 如果两者都是优先标签或都不是优先标签，按在priorityTags中的顺序或字母顺序排序
         if (aIsPriority && bIsPriority) {
             return priorityTags.indexOf(a) - priorityTags.indexOf(b);
@@ -2871,7 +2872,7 @@ function renderDetailTags(tags) {
             return a.localeCompare(b); // 都不是优先标签时按字母顺序
         }
     });
-    
+
     const container = document.getElementById('detail-tags-container');
     container.innerHTML = sortedTags.map(tag => `
         <span class="detail-tag-chip">
@@ -2885,24 +2886,24 @@ function renderDetailTags(tags) {
 function addTagToDetail() {
     const input = document.getElementById('detail-tags-input');
     const tag = input.value.trim();
-    
+
     if (!tag) {
         showToast('请输入标签名称', 'warning');
         return;
     }
-    
+
     const img = allImages.find(i => i.id === currentDetailId);
     if (!img) return;
-    
+
     const currentTags = img.tags || [];
     if (currentTags.includes(tag)) {
         showToast('该标签已存在', 'warning');
         return;
     }
-    
+
     currentTags.push(tag);
     img.tags = currentTags;
-    
+
     input.value = '';
     renderDetailTags(currentTags);
 }
@@ -2911,34 +2912,34 @@ function addTagToDetail() {
 function removeTagFromDetail(tag) {
     const img = allImages.find(i => i.id === currentDetailId);
     if (!img) return;
-    
+
     img.tags = (img.tags || []).filter(t => t !== tag);
     renderDetailTags(img.tags);
 }
 
 function saveDetail() {
     if (!currentDetailId) return;
-    
+
     const img = allImages.find(i => i.id === currentDetailId);
     if (!img) return;
-    
+
     // 更新图片信息
     img.category = document.getElementById('detail-category').value;
-    
+
     // 标签已经在添加/删除时更新了，不需要再处理
-    
+
     // 保存到数据库
     const transaction = db.transaction([STORE_NAME], "readwrite");
     const store = transaction.objectStore(STORE_NAME);
     store.put(img);
-    
+
     transaction.oncomplete = () => {
         closeDetail();
         renderGallery();
         renderCategories();
         showToast('保存成功！', 'success');
     };
-    
+
     transaction.onerror = () => {
         showToast('保存失败！', 'error');
     };
@@ -2947,13 +2948,13 @@ function saveDetail() {
 // 搜索功能
 function performSearch() {
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
-    
+
     // 应用搜索过滤
     let filtered = allImages;
-    
+
     // 过滤掉空分类记录
     filtered = filtered.filter(img => !img.isEmptyCategory);
-    
+
     if (currentFilter !== 'all') {
         if (currentFilter === '其他') {
             // 显示所有没有分类的图片以及明确分类为"其他"的图片
@@ -2962,7 +2963,7 @@ function performSearch() {
             filtered = filtered.filter(img => img.category === currentFilter);
         }
     }
-    
+
     // 如果设置了标签过滤（支持多选）
     if (currentTagFilters.length > 0) {
         filtered = filtered.filter(img => {
@@ -2971,12 +2972,12 @@ function performSearch() {
             return currentTagFilters.every(tag => img.tags.includes(tag));
         });
     }
-    
+
     // 应用模式过滤
     if (currentModeFilter && currentModeFilter !== 'ALL') {
         filtered = filtered.filter(img => hasSuffix(img.name, currentModeFilter));
     }
-    
+
     // 最后应用搜索过滤
     if (searchTerm) {
         filtered = filtered.filter(img => {
@@ -2984,19 +2985,19 @@ function performSearch() {
             const nameMatch = removeFileExtension(img.name).toLowerCase().includes(searchTerm);
             const categoryMatch = (img.category || '').toLowerCase().includes(searchTerm);
             const tagsMatch = img.tags && img.tags.some(tag => tag.toLowerCase().includes(searchTerm));
-            
+
             return nameMatch || categoryMatch || tagsMatch;
         });
     }
-    
+
     // 渲染过滤后的结果
     const container = document.getElementById('gallery');
     container.innerHTML = filtered.map(img => {
         const tagsDisplay = img.tags && img.tags.length > 0 ? img.tags.join(', ') : '无标签';
         const categoryDisplay = img.category ? img.category : '其他';
         // 检测图片名称是否包含DSC或TGA后缀
-        const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' : 
-                      hasSuffix(img.name, 'TGA') ? 'TGA' : '';
+        const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' :
+            hasSuffix(img.name, 'TGA') ? 'TGA' : '';
         return `
         <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
             <div class="img-card-thumb">
@@ -3011,8 +3012,9 @@ function performSearch() {
                 </div>
             </div>
         </div>
-    `;}).join('');
-    
+    `;
+    }).join('');
+
     updateUI();
     renderCategories(); // 更新统计信息
 }

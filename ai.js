@@ -3,43 +3,111 @@
 // 全局变量
 let currentConversation = null; // 当前对话
 let currentSelectedImages = []; // 当前选中的图片
+let isKnowledgeBaseEnabled = true; // 知识库启用状态
+let isQualityAnswersEnabled = true; // 优质回答启用状态
+
+// 初始化知识库状态
+function initKnowledgeBaseStatus() {
+    const savedKBStatus = localStorage.getItem('knowledgeBaseEnabled');
+    if (savedKBStatus !== null) {
+        isKnowledgeBaseEnabled = savedKBStatus === 'true';
+    }
+    // 更新UI状态
+    updateKnowledgeBaseUI();
+}
+
+// 初始化优质回答状态
+function initQualityAnswersStatus() {
+    const savedQAStatus = localStorage.getItem('qualityAnswersEnabled');
+    if (savedQAStatus !== null) {
+        isQualityAnswersEnabled = savedQAStatus === 'true';
+    }
+    // 更新UI状态
+    updateQualityAnswersUI();
+}
+
+// 切换知识库状态
+function toggleKnowledgeBase() {
+    isKnowledgeBaseEnabled = !isKnowledgeBaseEnabled;
+    // 保存状态到本地存储
+    localStorage.setItem('knowledgeBaseEnabled', isKnowledgeBaseEnabled.toString());
+    // 更新UI状态
+    updateKnowledgeBaseUI();
+    // 显示提示
+    showToast(`知识库已${isKnowledgeBaseEnabled ? '启用' : '禁用'}`, 'success');
+}
+
+// 更新知识库UI状态
+function updateKnowledgeBaseUI() {
+    const statusElement = document.getElementById('knowledge-base-status');
+    const toggleButton = document.getElementById('knowledge-base-toggle');
+    if (statusElement) {
+        statusElement.textContent = isKnowledgeBaseEnabled ? '启用' : '禁用';
+    }
+    if (toggleButton) {
+        toggleButton.style.background = isKnowledgeBaseEnabled ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)';
+    }
+}
+
+// 切换优质回答状态
+function toggleQualityAnswers() {
+    isQualityAnswersEnabled = !isQualityAnswersEnabled;
+    // 保存状态到本地存储
+    localStorage.setItem('qualityAnswersEnabled', isQualityAnswersEnabled.toString());
+    // 更新UI状态
+    updateQualityAnswersUI();
+    // 显示提示
+    showToast(`优质回答已${isQualityAnswersEnabled ? '启用' : '禁用'}`, 'success');
+}
+
+// 更新优质回答UI状态
+function updateQualityAnswersUI() {
+    const statusElement = document.getElementById('quality-answers-status');
+    const toggleButton = document.getElementById('quality-answers-toggle');
+    if (statusElement) {
+        statusElement.textContent = isQualityAnswersEnabled ? '启用' : '禁用';
+    }
+    if (toggleButton) {
+        toggleButton.style.background = isQualityAnswersEnabled ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)';
+    }
+}
 
 // 对话历史相关函数
 function getConversationList() {
-    console.log('Getting conversation list from localStorage...');
+
     const conversations = localStorage.getItem('ai-conversations');
-    console.log('Raw conversations data:', conversations);
+
     const parsed = conversations ? JSON.parse(conversations) : [];
-    console.log('Parsed conversations:', parsed);
+
     return parsed;
 }
 
 // 保存对话历史
 function saveConversationHistory(conversation) {
-    console.log('Saving conversation history:', conversation);
+
     const conversations = getConversationList();
     const existingIndex = conversations.findIndex(c => c.id === conversation.id);
-    
+
     if (existingIndex !== -1) {
-        console.log('Updating existing conversation at index:', existingIndex);
+
         conversations[existingIndex] = conversation;
     } else {
-        console.log('Adding new conversation');
+
         conversations.unshift(conversation);
     }
-    
-    console.log('Saving to localStorage:', conversations);
+
+
     localStorage.setItem('ai-conversations', JSON.stringify(conversations));
-    console.log('Conversation saved successfully');
+
 }
 
 // 加载对话历史
 function loadConversationHistory(conversationId) {
-    console.log('Loading conversation history for ID:', conversationId);
+
     const conversations = getConversationList();
-    console.log('All conversations:', conversations);
+
     const conversation = conversations.find(c => c.id === conversationId);
-    console.log('Found conversation:', conversation);
+
     return conversation;
 }
 
@@ -52,7 +120,7 @@ function deleteConversationHistory(conversationId) {
 
 // 创建新对话
 function createNewConversation(images = []) {
-    console.log('Creating new conversation with images:', images.length);
+
     const conversation = {
         id: Date.now().toString(),
         title: '新对话',
@@ -66,10 +134,10 @@ function createNewConversation(images = []) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
     };
-    
-    console.log('Created new conversation:', conversation);
+
+
     saveConversationHistory(conversation);
-    console.log('New conversation saved');
+
     return conversation;
 }
 
@@ -89,12 +157,12 @@ function updateConversationTitle(conversationId, title) {
 function saveAPIConfig() {
     const apiKeyInput = document.getElementById('openrouter-api-key');
     const modelSelect = document.getElementById('openrouter-api-model');
-    
+
     if (!apiKeyInput || !modelSelect) {
         showToast('API配置界面未找到', 'error');
         return;
     }
-    
+
     const config = {
         apiKey: apiKeyInput.value,
         model: modelSelect.value
@@ -102,12 +170,12 @@ function saveAPIConfig() {
 
     localStorage.setItem('ai-api-config', JSON.stringify(config));
     showToast('API配置已保存', 'success');
-    
+
     // 如果API密钥已设置，获取模型列表
     if (config.apiKey) {
         fetchModels(config.apiKey);
     }
-    
+
     closeAPIConfigModal();
 }
 
@@ -123,12 +191,12 @@ function loadAPIConfig() {
         if (modelSelect) {
             modelSelect.value = config.model || 'openai/gpt-4o';
         }
-        
+
         // 如果API密钥已设置，获取模型列表
         if (config.apiKey) {
             fetchModels(config.apiKey);
         }
-        
+
         // 初始化自定义下拉菜单
         initCustomSelect();
     }
@@ -139,9 +207,9 @@ async function fetchModels(apiKey) {
     const selectValue = document.getElementById('custom-select-value');
     const selectOptions = document.getElementById('custom-select-options');
     const hiddenInput = document.getElementById('openrouter-api-model');
-    
+
     if (!selectValue || !selectOptions || !hiddenInput) return;
-    
+
     selectValue.textContent = '加载模型列表中...';
 
     try {
@@ -159,7 +227,7 @@ async function fetchModels(apiKey) {
         const models = data.data || [];
 
         selectOptions.innerHTML = '';
-        
+
         const groupedModels = {};
         models.forEach(model => {
             const provider = model.id.split('/')[0] || 'other';
@@ -180,13 +248,13 @@ async function fetchModels(apiKey) {
             // 其他模型按字母顺序排序
             return a.localeCompare(b);
         });
-        
+
         sortedProviders.forEach(provider => {
             const optgroup = document.createElement('div');
             optgroup.className = 'custom-select-optgroup';
             optgroup.textContent = provider.toUpperCase();
             selectOptions.appendChild(optgroup);
-            
+
             groupedModels[provider]
                 .sort((a, b) => {
                     // 首先判断两个模型是否支持图片
@@ -195,21 +263,21 @@ async function fetchModels(apiKey) {
                         'claude-3', 'gemini-1.5', 'gemini-2.0', 'gemini-exp',
                         'llava', 'cogvlm', 'qwen-vl', 'internvl', 'pixtral'
                     ];
-                    
-                    const isVisionA = visionModels.some(vm => 
-                        a.id.toLowerCase().includes(vm) || 
+
+                    const isVisionA = visionModels.some(vm =>
+                        a.id.toLowerCase().includes(vm) ||
                         a.name.toLowerCase().includes(vm)
                     );
-                    
-                    const isVisionB = visionModels.some(vm => 
-                        b.id.toLowerCase().includes(vm) || 
+
+                    const isVisionB = visionModels.some(vm =>
+                        b.id.toLowerCase().includes(vm) ||
                         b.name.toLowerCase().includes(vm)
                     );
-                    
+
                     // 支持图片的模型排在前面
                     if (isVisionA && !isVisionB) return -1;
                     if (!isVisionA && isVisionB) return 1;
-                    
+
                     // 千问模型内部按名称排序
                     if (provider.toLowerCase().includes('qwen')) {
                         return a.name.localeCompare(b.name);
@@ -242,8 +310,8 @@ async function fetchModels(apiKey) {
                         'claude-3', 'gemini-1.5', 'gemini-2.0', 'gemini-exp',
                         'llava', 'cogvlm', 'qwen-vl', 'internvl', 'pixtral'
                     ];
-                    const isVisionModel = visionModels.some(vm => 
-                        model.id.toLowerCase().includes(vm) || 
+                    const isVisionModel = visionModels.some(vm =>
+                        model.id.toLowerCase().includes(vm) ||
                         model.name.toLowerCase().includes(vm)
                     );
                     if (isVisionModel) {
@@ -252,27 +320,27 @@ async function fetchModels(apiKey) {
                     option.textContent = model.name + priceInfo + visionBadge;
                     option.dataset.info = model.description || '';
                     option.dataset.vision = isVisionModel ? 'true' : 'false';
-                    
+
                     // 添加点击事件
-                    option.addEventListener('click', function() {
+                    option.addEventListener('click', function () {
                         selectCustomOption(model.id, option.textContent);
                     });
-                    
+
                     selectOptions.appendChild(option);
                 });
         });
 
         const savedConfig = getAPIConfig();
         let selectedModel = null;
-        
+
         if (savedConfig.model) {
             selectedModel = models.find(model => model.id === savedConfig.model);
         }
-        
+
         if (!selectedModel) {
             selectedModel = models.find(model => model.id === 'openai/gpt-4o-mini');
         }
-        
+
         if (selectedModel) {
             const pricing = selectedModel.pricing;
             let priceInfo = '';
@@ -291,8 +359,8 @@ async function fetchModels(apiKey) {
                 'claude-3', 'gemini-1.5', 'gemini-2.0', 'gemini-exp',
                 'llava', 'cogvlm', 'qwen-vl', 'internvl', 'pixtral'
             ];
-            const isVisionModel = visionModels.some(vm => 
-                selectedModel.id.toLowerCase().includes(vm) || 
+            const isVisionModel = visionModels.some(vm =>
+                selectedModel.id.toLowerCase().includes(vm) ||
                 selectedModel.name.toLowerCase().includes(vm)
             );
             if (isVisionModel) {
@@ -307,7 +375,7 @@ async function fetchModels(apiKey) {
         checkModelAvailability(hiddenInput.value, apiKey);
 
     } catch (error) {
-        console.error('Error fetching models:', error);
+
         selectValue.textContent = '加载失败，请检查 API Key';
         hiddenInput.value = '';
     }
@@ -315,43 +383,36 @@ async function fetchModels(apiKey) {
 
 // 初始化自定义下拉菜单
 function initCustomSelect() {
-    console.log('Initializing custom select...');
+
     const customSelect = document.getElementById('custom-model-select');
     const selectValue = document.getElementById('custom-select-value');
     const selectDropdown = document.getElementById('custom-select-dropdown');
-    
-    console.log('Elements found:', {
-        customSelect: !!customSelect,
-        selectValue: !!selectValue,
-        selectDropdown: !!selectDropdown
-    });
-    
+
     if (!customSelect || !selectValue || !selectDropdown) {
-        console.error('Custom select elements not found');
         return;
     }
-    
+
     // 点击外部关闭下拉菜单
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         // 检查点击的元素是否在自定义下拉菜单内部
         if (!customSelect.contains(e.target)) {
             selectDropdown.style.display = 'none';
         }
     });
-    
-    console.log('Custom select initialized successfully');
+
+
 }
 
 // 切换自定义下拉菜单的显示状态
 function toggleCustomSelect() {
-    console.log('Toggling custom select...');
+
     const selectDropdown = document.getElementById('custom-select-dropdown');
     if (selectDropdown) {
-        console.log('Current display state:', selectDropdown.style.display);
+
         selectDropdown.style.display = selectDropdown.style.display === 'block' ? 'none' : 'block';
-        console.log('New display state:', selectDropdown.style.display);
+
     } else {
-        console.error('Select dropdown not found');
+
     }
 }
 
@@ -368,14 +429,14 @@ function selectCustomOption(modelId, modelName) {
     const selectValue = document.getElementById('custom-select-value');
     const hiddenInput = document.getElementById('openrouter-api-model');
     const selectDropdown = document.getElementById('custom-select-dropdown');
-    
+
     if (selectValue && hiddenInput) {
         selectValue.textContent = modelName;
         hiddenInput.value = modelId;
         updateModelChips();
         checkModelAvailability(modelId);
     }
-    
+
     if (selectDropdown) {
         selectDropdown.style.display = 'none';
     }
@@ -386,9 +447,9 @@ function selectModel(modelId) {
     const hiddenInput = document.getElementById('openrouter-api-model');
     const selectValue = document.getElementById('custom-select-value');
     const selectOptions = document.getElementById('custom-select-options');
-    
+
     if (!hiddenInput || !selectValue) return;
-    
+
     const option = selectOptions ? selectOptions.querySelector(`.custom-select-option[data-value="${modelId}"]`) : null;
     if (option) {
         hiddenInput.value = modelId;
@@ -404,7 +465,7 @@ function selectModel(modelId) {
 function updateModelChips() {
     const hiddenInput = document.getElementById('openrouter-api-model');
     if (!hiddenInput) return;
-    
+
     const currentModel = hiddenInput.value;
     document.querySelectorAll('.model-chip').forEach(chip => {
         const chipModel = chip.getAttribute('onclick').match(/'([^']+)'/)?.[1];
@@ -419,11 +480,11 @@ function updateModelChips() {
 // 检查模型可用性
 async function checkModelAvailability(modelId, apiKey = null) {
     if (!modelId) return;
-    
+
     const config = getAPIConfig();
     const key = apiKey || config.apiKey;
     if (!key) return;
-    
+
     showModelStatus('checking', '检测模型可用性...');
 
     try {
@@ -448,7 +509,7 @@ async function checkModelAvailability(modelId, apiKey = null) {
         } else {
             const errorData = await response.json();
             const errorMsg = errorData.error?.message || '';
-            
+
             if (errorMsg.includes('not available in your region') || errorMsg.includes('region')) {
                 showModelStatus('unavailable', '地区不可用', '此模型在你所在地区受限，请选择其他模型');
             } else if (errorMsg.includes('insufficient') || errorMsg.includes('quota') || errorMsg.includes('credits')) {
@@ -539,7 +600,7 @@ async function callAIAnalysis(imageData, resultElement) {
 // 调用OpenRouter API（流式输出）
 async function callOpenRouterAPI(imageData, resultElement, existingMessages = []) {
     const config = getAPIConfig();
-    
+
     // 验证模型是否支持图像分析
     const visionModels = [
         'openai/gpt-4o', 'openai/gpt-4o-mini', 'openai/gpt-4-turbo', 'openai/gpt-4-vision',
@@ -548,22 +609,22 @@ async function callOpenRouterAPI(imageData, resultElement, existingMessages = []
         'google/gemini-1.5-flash', 'google/gemini-1.5-pro', 'google/gemini-2.0-flash-exp:free',
         'llava', 'cogvlm', 'qwen-vl', 'internvl', 'pixtral'
     ];
-    
+
     // 检查模型是否在支持列表中，或者模型ID包含视觉相关关键词
-    const isVisionModel = visionModels.includes(config.model) || 
+    const isVisionModel = visionModels.includes(config.model) ||
         config.model.toLowerCase().includes('vision') ||
         config.model.toLowerCase().includes('vl') ||
         config.model.toLowerCase().includes('gemini') ||
         config.model.toLowerCase().includes('claude-3') ||
         config.model.toLowerCase().includes('gpt-4o');
-    
+
     if (imageData.length > 0 && !isVisionModel) {
         throw new Error('当前选择的模型不支持图像分析，请选择支持视觉的模型如OpenAI GPT-4o或DeepSeek VL');
     }
-    
+
     // 准备请求数据
     const messages = existingMessages.length > 0 ? [...existingMessages] : [];
-    
+
     // 如果没有对话历史，添加初始消息
     if (messages.length === 0) {
         messages.push({
@@ -611,7 +672,7 @@ async function callOpenRouterAPI(imageData, resultElement, existingMessages = []
             break;
         }
     }
-    
+
     if (!lastUserMessage) {
         // 如果没有用户消息，创建一个新的
         lastUserMessage = {
@@ -625,7 +686,7 @@ async function callOpenRouterAPI(imageData, resultElement, existingMessages = []
         };
         messages.push(lastUserMessage);
     }
-    
+
     // 确保content是数组格式
     if (!lastUserMessage.content || typeof lastUserMessage.content === 'string') {
         lastUserMessage.content = [
@@ -635,7 +696,60 @@ async function callOpenRouterAPI(imageData, resultElement, existingMessages = []
             }
         ];
     }
-    
+
+    // 获取用户问题文本
+    let userQuery = "";
+    for (const item of lastUserMessage.content) {
+        if (item.type === "text") {
+            userQuery = item.text;
+            break;
+        }
+    }
+
+    // 构建系统消息内容
+    let systemContent = "你是一个专业的AI助手，必须严格按照以下要求回答用户问题：\n\n";
+
+    // 如果知识库启用，获取相关知识库内容
+    if (isKnowledgeBaseEnabled) {
+        const relevantKnowledge = getRelevantKnowledge(userQuery);
+        if (relevantKnowledge) {
+            systemContent += `## 知识库参考内容\n${relevantKnowledge}\n\n`;
+            systemContent += "**重要要求**：你必须基于上述知识库内容回答用户问题，确保回答的准确性和专业性。\n\n";
+        }
+    }
+
+    // 如果优质回答启用，获取相关优质回答内容
+    if (isQualityAnswersEnabled) {
+        const relevantQualityAnswers = getRelevantQualityAnswers(userQuery);
+        if (relevantQualityAnswers) {
+            systemContent += `## 优质回答参考\n${relevantQualityAnswers}\n\n`;
+            systemContent += "**重要要求**：你必须参考上述优质回答的风格、结构和内容，确保回答质量与优质回答一致。\n\n";
+        }
+    }
+
+    // 如果错误案例启用，获取相关错误案例内容
+    if (isErrorCasesEnabled) {
+        const relevantErrorCases = getRelevantErrorCases(userQuery);
+        if (relevantErrorCases) {
+            systemContent += `## 错误案例警示\n${relevantErrorCases}\n\n`;
+            systemContent += "**重要要求**：你必须仔细分析上述错误案例，避免犯同样的错误。如果遇到类似问题，请参考正确回答的方式，确保不重复历史错误。\n\n";
+        }
+    }
+
+    systemContent += "## 回答要求\n1. 必须结合知识库内容（如果有）回答问题\n2. 必须参考优质回答的风格和结构（如果有）\n3. 必须参考错误案例警示（如果有），避免重复错误\n4. 必须结合图片分析结果\n5. 回答要专业、准确、详细\n6. 使用Markdown格式输出，确保结构清晰\n7. 直接回答问题，不要有任何引言或开场白";
+
+    // 如果启用了知识库、优质回答或错误案例，添加系统消息
+    if (isKnowledgeBaseEnabled || isQualityAnswersEnabled || isErrorCasesEnabled) {
+        // 创建系统消息，包含知识库、优质回答和错误案例内容
+        messages.unshift({
+            role: "system",
+            content: systemContent
+        });
+
+        // 添加调试信息
+
+    }
+
     // 添加图片数据
     for (const image of imageData) {
         lastUserMessage.content.push({
@@ -676,7 +790,7 @@ async function callOpenRouterAPI(imageData, resultElement, existingMessages = []
     let fullResponse = '';
 
     resultElement.innerHTML = '';
-    
+
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -699,7 +813,7 @@ async function callOpenRouterAPI(imageData, resultElement, existingMessages = []
                         resultElement.textContent = fullResponse;
                     }
                 } catch (e) {
-                    console.error('解析流式数据失败:', e);
+
                 }
             }
         }
@@ -714,16 +828,16 @@ async function analyzeZoomImage() {
         showToast('没有可分析的图片', 'warning');
         return;
     }
-    
+
     const currentImage = compareImages[zoomIndex];
     const aiBtn = document.getElementById('zoom-ai-btn');
     const aiResult = document.getElementById('zoom-ai-result');
-    
+
     // 显示加载状态
     aiBtn.disabled = true;
     aiResult.innerHTML = '<div class="loading">正在分析图片，请稍候...</div>';
     aiResult.classList.add('loading');
-    
+
     try {
         // 准备图片数据
         const imageData = [{
@@ -731,7 +845,7 @@ async function analyzeZoomImage() {
             data: currentImage.data,
             category: currentImage.category
         }];
-        
+
         // 调用AI API（流式输出）
         const fullResponse = await callAIAnalysis(imageData, aiResult);
         // 格式化AI返回的结果
@@ -740,11 +854,603 @@ async function analyzeZoomImage() {
         }
         aiResult.classList.remove('loading');
     } catch (error) {
-        console.error('AI分析失败:', error);
+
         aiResult.innerHTML = `<p>分析失败：${error.message}</p>`;
         aiResult.classList.remove('loading');
     } finally {
         aiBtn.disabled = false;
+    }
+}
+
+// 知识库管理
+
+// 加载知识库
+function loadKnowledgeBase() {
+    try {
+        const knowledgeBaseData = localStorage.getItem('knowledgeBase');
+        return knowledgeBaseData ? JSON.parse(knowledgeBaseData) : {
+            id: 'default-kb',
+            name: '专业知识库',
+            description: '存储专业领域知识的数据库',
+            entries: []
+        };
+    } catch (error) {
+
+        return {
+            id: 'default-kb',
+            name: '专业知识库',
+            description: '存储专业领域知识的数据库',
+            entries: []
+        };
+    }
+}
+
+// 保存知识库
+function saveKnowledgeBase(knowledgeBase) {
+    try {
+        localStorage.setItem('knowledgeBase', JSON.stringify(knowledgeBase));
+        return true;
+    } catch (error) {
+
+        return false;
+    }
+}
+
+// 添加知识库条目
+function addKnowledgeEntry(entry) {
+    const knowledgeBase = loadKnowledgeBase();
+    const newEntry = {
+        id: 'entry-' + Date.now(),
+        title: entry.title,
+        content: entry.content,
+        tags: entry.tags || [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    knowledgeBase.entries.push(newEntry);
+    return saveKnowledgeBase(knowledgeBase);
+}
+
+// 更新知识库条目
+function updateKnowledgeEntry(entryId, updatedEntry) {
+    const knowledgeBase = loadKnowledgeBase();
+    const entryIndex = knowledgeBase.entries.findIndex(entry => entry.id === entryId);
+    if (entryIndex !== -1) {
+        knowledgeBase.entries[entryIndex] = {
+            ...knowledgeBase.entries[entryIndex],
+            ...updatedEntry,
+            updatedAt: new Date().toISOString()
+        };
+        return saveKnowledgeBase(knowledgeBase);
+    }
+    return false;
+}
+
+// 删除知识库条目
+function deleteKnowledgeEntry(entryId) {
+    const knowledgeBase = loadKnowledgeBase();
+    knowledgeBase.entries = knowledgeBase.entries.filter(entry => entry.id !== entryId);
+    return saveKnowledgeBase(knowledgeBase);
+}
+
+// 搜索知识库
+function searchKnowledgeBase(query) {
+    const knowledgeBase = loadKnowledgeBase();
+    const lowerQuery = query.toLowerCase();
+    return knowledgeBase.entries.filter(entry => {
+        const content = entry.title.toLowerCase() + ' ' +
+            entry.content.toLowerCase() + ' ' +
+            entry.tags.join(' ').toLowerCase();
+        return content.includes(lowerQuery);
+    });
+}
+
+// 获取相关知识库内容
+function getRelevantKnowledge(userQuery, maxResults = 3) {
+    const relevantEntries = searchKnowledgeBase(userQuery);
+    return relevantEntries.slice(0, maxResults).map(entry => {
+        return `【${entry.title}】\n${entry.content}`;
+    }).join('\n\n');
+}
+
+// 优质回答管理
+
+// 加载优质回答
+function loadQualityAnswers() {
+    try {
+        const qualityAnswersData = localStorage.getItem('qualityAnswers');
+        return qualityAnswersData ? JSON.parse(qualityAnswersData) : {
+            id: 'default-qa',
+            name: '优质回答库',
+            description: '存储优质回答的数据库',
+            entries: []
+        };
+    } catch (error) {
+
+        return {
+            id: 'default-qa',
+            name: '优质回答库',
+            description: '存储优质回答的数据库',
+            entries: []
+        };
+    }
+}
+
+// 保存优质回答
+function saveQualityAnswers(qualityAnswers) {
+    try {
+        localStorage.setItem('qualityAnswers', JSON.stringify(qualityAnswers));
+        return true;
+    } catch (error) {
+
+        return false;
+    }
+}
+
+// 添加优质回答
+function addQualityAnswer(answer) {
+    const qualityAnswers = loadQualityAnswers();
+    const newAnswer = {
+        id: 'qa-' + Date.now(),
+        question: answer.question,
+        content: answer.content,
+        tags: answer.tags || [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    qualityAnswers.entries.push(newAnswer);
+    return saveQualityAnswers(qualityAnswers);
+}
+
+// 更新优质回答
+function updateQualityAnswer(answerId, updatedAnswer) {
+    const qualityAnswers = loadQualityAnswers();
+    const answerIndex = qualityAnswers.entries.findIndex(answer => answer.id === answerId);
+    if (answerIndex !== -1) {
+        qualityAnswers.entries[answerIndex] = {
+            ...qualityAnswers.entries[answerIndex],
+            ...updatedAnswer,
+            updatedAt: new Date().toISOString()
+        };
+        return saveQualityAnswers(qualityAnswers);
+    }
+    return false;
+}
+
+// 删除优质回答
+function deleteQualityAnswer(answerId) {
+    const qualityAnswers = loadQualityAnswers();
+    qualityAnswers.entries = qualityAnswers.entries.filter(answer => answer.id !== answerId);
+    return saveQualityAnswers(qualityAnswers);
+}
+
+// 搜索优质回答
+function searchQualityAnswers(query) {
+    const qualityAnswers = loadQualityAnswers();
+    const lowerQuery = query.toLowerCase();
+    return qualityAnswers.entries.filter(answer => {
+        const content = answer.question.toLowerCase() + ' ' +
+            answer.content.toLowerCase() + ' ' +
+            answer.tags.join(' ').toLowerCase();
+        return content.includes(lowerQuery);
+    });
+}
+
+// 获取相关优质回答内容
+function getRelevantQualityAnswers(userQuery, maxResults = 3) {
+    const relevantAnswers = searchQualityAnswers(userQuery);
+    return relevantAnswers.slice(0, maxResults).map(answer => {
+        return `【问题】${answer.question}\n【回答】${answer.content}`;
+    }).join('\n\n');
+}
+
+// 错误案例管理
+
+// 加载错误案例
+function loadErrorCases() {
+    try {
+        const errorCasesData = localStorage.getItem('errorCases');
+        return errorCasesData ? JSON.parse(errorCasesData) : {
+            id: 'default-ec',
+            name: '错误案例库',
+            description: '存储AI错误案例的数据库，用于自我纠错和学习',
+            entries: []
+        };
+    } catch (error) {
+
+        return {
+            id: 'default-ec',
+            name: '错误案例库',
+            description: '存储AI错误案例的数据库，用于自我纠错和学习',
+            entries: []
+        };
+    }
+}
+
+// 保存错误案例
+function saveErrorCases(errorCases) {
+    try {
+        localStorage.setItem('errorCases', JSON.stringify(errorCases));
+        return true;
+    } catch (error) {
+
+        return false;
+    }
+}
+
+// 添加错误案例
+function addErrorCase(errorCase) {
+    const errorCases = loadErrorCases();
+    const newCase = {
+        id: 'ec-' + Date.now(),
+        question: errorCase.question,
+        wrongAnswer: errorCase.wrongAnswer,
+        correctAnswer: errorCase.correctAnswer,
+        errorReason: errorCase.errorReason,
+        tags: errorCase.tags || [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    errorCases.entries.push(newCase);
+    return saveErrorCases(errorCases);
+}
+
+// 更新错误案例
+function updateErrorCase(caseId, updatedCase) {
+    const errorCases = loadErrorCases();
+    const caseIndex = errorCases.entries.findIndex(c => c.id === caseId);
+    if (caseIndex !== -1) {
+        errorCases.entries[caseIndex] = {
+            ...errorCases.entries[caseIndex],
+            ...updatedCase,
+            updatedAt: new Date().toISOString()
+        };
+        return saveErrorCases(errorCases);
+    }
+    return false;
+}
+
+// 删除错误案例
+function deleteErrorCase(caseId) {
+    const errorCases = loadErrorCases();
+    errorCases.entries = errorCases.entries.filter(c => c.id !== caseId);
+    return saveErrorCases(errorCases);
+}
+
+// 搜索错误案例
+function searchErrorCases(query) {
+    const errorCases = loadErrorCases();
+    const lowerQuery = query.toLowerCase();
+    return errorCases.entries.filter(c => {
+        const content = c.question.toLowerCase() + ' ' +
+            c.wrongAnswer.toLowerCase() + ' ' +
+            c.correctAnswer.toLowerCase() + ' ' +
+            c.errorReason.toLowerCase() + ' ' +
+            c.tags.join(' ').toLowerCase();
+        return content.includes(lowerQuery);
+    });
+}
+
+// 获取相关错误案例内容
+function getRelevantErrorCases(userQuery, maxResults = 3) {
+    const relevantCases = searchErrorCases(userQuery);
+    return relevantCases.slice(0, maxResults).map(c => {
+        return `【问题】${c.question}\n【错误回答】${c.wrongAnswer}\n【正确回答】${c.correctAnswer}\n【错误原因】${c.errorReason}`;
+    }).join('\n\n');
+}
+
+// 初始化错误案例状态
+let isErrorCasesEnabled = true;
+
+function initErrorCasesStatus() {
+    const savedECStatus = localStorage.getItem('errorCasesEnabled');
+    if (savedECStatus !== null) {
+        isErrorCasesEnabled = savedECStatus === 'true';
+    }
+    updateErrorCasesUI();
+}
+
+// 切换错误案例状态
+function toggleErrorCases() {
+    isErrorCasesEnabled = !isErrorCasesEnabled;
+    localStorage.setItem('errorCasesEnabled', isErrorCasesEnabled.toString());
+    updateErrorCasesUI();
+    showToast(`错误案例已${isErrorCasesEnabled ? '启用' : '禁用'}`, 'success');
+}
+
+// 更新错误案例UI状态
+function updateErrorCasesUI() {
+    const errorCasesBtn = document.getElementById('error-cases-btn');
+    if (errorCasesBtn) {
+        if (isErrorCasesEnabled) {
+            errorCasesBtn.textContent = '⚠️ 错误案例（启用）';
+            errorCasesBtn.classList.add('active');
+        } else {
+            errorCasesBtn.textContent = '⚠️ 错误案例（禁用）';
+            errorCasesBtn.classList.remove('active');
+        }
+    }
+
+    // 更新AI分析窗口中的状态显示
+    const errorCasesStatus = document.getElementById('error-cases-status');
+    if (errorCasesStatus) {
+        errorCasesStatus.textContent = isErrorCasesEnabled ? '启用' : '禁用';
+    }
+
+    const errorCasesToggle = document.getElementById('error-cases-toggle');
+    if (errorCasesToggle) {
+        if (isErrorCasesEnabled) {
+            errorCasesToggle.style.background = 'rgba(255,255,255,0.3)';
+            errorCasesToggle.style.fontWeight = '600';
+        } else {
+            errorCasesToggle.style.background = 'rgba(255,255,255,0.2)';
+            errorCasesToggle.style.fontWeight = '400';
+        }
+    }
+}
+
+// 错误案例管理模态窗口
+
+// 显示错误案例管理模态窗口
+function showErrorCasesModal() {
+    const modal = document.getElementById('error-cases-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // 加载错误案例
+        loadErrorCasesList();
+    }
+}
+
+// 关闭错误案例管理模态窗口
+function closeErrorCasesModal() {
+    const modal = document.getElementById('error-cases-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 显示添加错误案例模态窗口
+function showAddErrorCaseModal() {
+    const modal = document.getElementById('add-error-case-modal');
+    if (modal) {
+        // 清空表单
+        document.getElementById('error-case-question').value = '';
+        document.getElementById('error-case-wrong-answer').value = '';
+        document.getElementById('error-case-correct-answer').value = '';
+        document.getElementById('error-case-reason').value = '';
+        document.getElementById('error-case-tags').value = '';
+        document.getElementById('error-case-id').value = '';
+
+        // 重置按钮文本
+        const saveButton = modal.querySelector('.api-config-btn-save');
+        if (saveButton) {
+            saveButton.textContent = '保存';
+        }
+
+        const titleElement = document.getElementById('error-case-modal-title');
+        if (titleElement) {
+            titleElement.textContent = '添加错误案例';
+        }
+
+        modal.style.display = 'flex';
+    }
+}
+
+// 关闭添加错误案例模态窗口
+function closeAddErrorCaseModal() {
+    const modal = document.getElementById('add-error-case-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 保存错误案例
+function saveErrorCase() {
+    const question = document.getElementById('error-case-question').value.trim();
+    const wrongAnswer = document.getElementById('error-case-wrong-answer').value.trim();
+    const correctAnswer = document.getElementById('error-case-correct-answer').value.trim();
+    const errorReason = document.getElementById('error-case-reason').value.trim();
+    const tagsInput = document.getElementById('error-case-tags').value.trim();
+    const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+    const caseId = document.getElementById('error-case-id').value.trim();
+
+    if (!question || !wrongAnswer || !correctAnswer || !errorReason) {
+        showToast('问题、错误回答、正确回答和错误原因不能为空', 'error');
+        return;
+    }
+
+    // 显示加载状态
+    showToast('正在保存错误案例...', 'info');
+
+    if (caseId) {
+        // 更新现有案例
+        const updatedCase = {
+            question: question,
+            wrongAnswer: wrongAnswer,
+            correctAnswer: correctAnswer,
+            errorReason: errorReason,
+            tags: tags
+        };
+
+        if (updateErrorCase(caseId, updatedCase)) {
+            showToast('错误案例更新成功', 'success');
+            closeAddErrorCaseModal();
+            loadErrorCasesList();
+        } else {
+            showToast('错误案例更新失败', 'error');
+        }
+    } else {
+        // 添加新案例
+        const newCase = {
+            question: question,
+            wrongAnswer: wrongAnswer,
+            correctAnswer: correctAnswer,
+            errorReason: errorReason,
+            tags: tags
+        };
+
+        if (addErrorCase(newCase)) {
+            showToast('错误案例添加成功', 'success');
+            closeAddErrorCaseModal();
+            loadErrorCasesList();
+        } else {
+            showToast('错误案例添加失败', 'error');
+        }
+    }
+}
+
+// 加载错误案例列表
+function loadErrorCasesList(searchKeyword = '') {
+    const casesList = document.getElementById('error-cases-list');
+    if (!casesList) return;
+
+    const errorCases = loadErrorCases();
+
+    let filteredCases = errorCases.entries;
+
+    // 如果有搜索关键词，进行过滤
+    if (searchKeyword) {
+        const lowerKeyword = searchKeyword.toLowerCase();
+        filteredCases = filteredCases.filter(c => {
+            const content = c.question.toLowerCase() + ' ' +
+                c.wrongAnswer.toLowerCase() + ' ' +
+                c.correctAnswer.toLowerCase() + ' ' +
+                c.errorReason.toLowerCase() + ' ' +
+                c.tags.join(' ').toLowerCase();
+            return content.includes(lowerKeyword);
+        });
+    }
+
+    if (filteredCases.length === 0) {
+        casesList.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #94a3b8; font-size: 14px;">
+                ${searchKeyword ? '未找到匹配的错误案例' : '错误案例库为空，请添加案例'}
+            </div>
+        `;
+        return;
+    }
+
+    const casesHtml = filteredCases.map(c => {
+        return `
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <h6 style="margin: 0; font-size: 14px; font-weight: 600; color: #1e293b; flex: 1; min-width: 0;">${escapeHtml(c.question)}</h6>
+                    <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                        <button onclick="viewErrorCase('${c.id}')" style="padding: 4px 8px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                            查看
+                        </button>
+                        <button onclick="editErrorCase('${c.id}')" style="padding: 4px 8px; background: #f0fdf4; color: #22c55e; border: 1px solid #bbf7d0; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                            编辑
+                        </button>
+                        <button onclick="deleteErrorCase('${c.id}'); loadErrorCasesList();" style="padding: 4px 8px; background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                            删除
+                        </button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 8px; padding: 8px; background: #fef2f2; border-radius: 6px;">
+                    <p style="margin: 0 0 4px 0; font-size: 11px; color: #991b1b; font-weight: 600;">错误原因：</p>
+                    <p style="margin: 0; font-size: 12px; color: #991b1b; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                        ${escapeHtml(c.errorReason)}
+                    </p>
+                </div>
+                ${c.tags.length > 0 ? `
+                    <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
+                        ${c.tags.map(tag => `
+                            <span style="padding: 2px 8px; background: #fef2f2; color: #991b1b; border-radius: 12px; font-size: 10px;">${escapeHtml(tag)}</span>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                <div style="margin-top: 8px; font-size: 11px; color: #94a3b8;">
+                    更新于 ${new Date(c.updatedAt).toLocaleString()}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    casesList.innerHTML = casesHtml;
+}
+
+// 搜索错误案例列表
+function searchErrorCasesList() {
+    const searchInput = document.getElementById('error-cases-search');
+    if (searchInput) {
+        loadErrorCasesList(searchInput.value.trim());
+    }
+}
+
+// 查看错误案例详情
+function viewErrorCase(caseId) {
+    const errorCases = loadErrorCases();
+    const c = errorCases.entries.find(e => e.id === caseId);
+
+    if (!c) {
+        showToast('错误案例不存在', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('view-error-case-modal');
+    if (modal) {
+        document.getElementById('view-error-case-question').textContent = c.question;
+        document.getElementById('view-error-case-wrong-answer').innerHTML = formatAIResponse(c.wrongAnswer);
+        document.getElementById('view-error-case-correct-answer').innerHTML = formatAIResponse(c.correctAnswer);
+        document.getElementById('view-error-case-reason').textContent = c.errorReason;
+
+        const tagsContainer = document.getElementById('view-error-case-tags');
+        if (c.tags.length > 0) {
+            tagsContainer.innerHTML = c.tags.map(tag => `
+                <span style="padding: 4px 12px; background: #fef2f2; color: #991b1b; border-radius: 12px; font-size: 12px;">${escapeHtml(tag)}</span>
+            `).join('');
+        } else {
+            tagsContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">无标签</span>';
+        }
+
+        document.getElementById('view-error-case-date').textContent = `更新于 ${new Date(c.updatedAt).toLocaleString()}`;
+        modal.style.display = 'flex';
+    }
+}
+
+// 关闭查看错误案例模态窗口
+function closeViewErrorCaseModal() {
+    const modal = document.getElementById('view-error-case-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 编辑错误案例
+function editErrorCase(caseId) {
+    const errorCases = loadErrorCases();
+    const c = errorCases.entries.find(e => e.id === caseId);
+
+    if (!c) {
+        showToast('错误案例不存在', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('add-error-case-modal');
+    if (modal) {
+        // 填充表单数据
+        document.getElementById('error-case-question').value = c.question;
+        document.getElementById('error-case-wrong-answer').value = c.wrongAnswer;
+        document.getElementById('error-case-correct-answer').value = c.correctAnswer;
+        document.getElementById('error-case-reason').value = c.errorReason;
+        document.getElementById('error-case-tags').value = c.tags.join(', ');
+
+        // 保存当前编辑的案例ID
+        document.getElementById('error-case-id').value = caseId;
+
+        // 修改标题和按钮文本
+        const titleElement = document.getElementById('error-case-modal-title');
+        if (titleElement) {
+            titleElement.textContent = '编辑错误案例';
+        }
+
+        const saveButton = modal.querySelector('.api-config-btn-save');
+        if (saveButton) {
+            saveButton.textContent = '更新';
+        }
+
+        modal.style.display = 'flex';
     }
 }
 
@@ -772,6 +1478,449 @@ function closeAPIConfigModal() {
     const apiConfigModal = document.getElementById('api-config-modal');
     if (apiConfigModal) {
         apiConfigModal.style.display = 'none';
+    }
+}
+
+// 知识库管理模态窗口
+
+// 显示知识库管理模态窗口
+function showKnowledgeBaseModal() {
+    const modal = document.getElementById('knowledge-base-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // 加载知识库条目
+        loadKnowledgeEntries();
+    }
+}
+
+// 关闭知识库管理模态窗口
+function closeKnowledgeBaseModal() {
+    const modal = document.getElementById('knowledge-base-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 显示添加知识库条目模态窗口
+function showAddKnowledgeEntryModal() {
+    const modal = document.getElementById('add-knowledge-entry-modal');
+    if (modal) {
+        // 清空表单
+        document.getElementById('knowledge-title').value = '';
+        document.getElementById('knowledge-content').value = '';
+        document.getElementById('knowledge-tags').value = '';
+        document.getElementById('knowledge-entry-id').value = '';
+
+        // 重置按钮文本
+        const saveButton = modal.querySelector('.api-config-btn-save');
+        if (saveButton) {
+            saveButton.textContent = '保存';
+        }
+
+        modal.style.display = 'flex';
+    }
+}
+
+// 关闭添加知识库条目模态窗口
+function closeAddKnowledgeEntryModal() {
+    const modal = document.getElementById('add-knowledge-entry-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 优质回答管理模态窗口
+
+// 显示优质回答管理模态窗口
+function showQualityAnswersModal() {
+    const modal = document.getElementById('quality-answers-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // 加载优质回答
+        loadQualityAnswersList();
+    }
+}
+
+// 关闭优质回答管理模态窗口
+function closeQualityAnswersModal() {
+    const modal = document.getElementById('quality-answers-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 显示添加优质回答模态窗口
+function showAddQualityAnswerModal() {
+    const modal = document.getElementById('add-quality-answer-modal');
+    if (modal) {
+        // 清空表单
+        document.getElementById('quality-answer-question').value = '';
+        document.getElementById('quality-answer-content').value = '';
+        document.getElementById('quality-answer-tags').value = '';
+        document.getElementById('quality-answer-id').value = '';
+
+        // 重置按钮文本
+        const saveButton = modal.querySelector('.api-config-btn-save');
+        if (saveButton) {
+            saveButton.textContent = '保存';
+        }
+
+        const titleElement = document.getElementById('quality-answer-modal-title');
+        if (titleElement) {
+            titleElement.textContent = '添加优质回答';
+        }
+
+        modal.style.display = 'flex';
+    }
+}
+
+// 关闭添加优质回答模态窗口
+function closeAddQualityAnswerModal() {
+    const modal = document.getElementById('add-quality-answer-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 保存优质回答
+function saveQualityAnswer() {
+    const question = document.getElementById('quality-answer-question').value.trim();
+    const content = document.getElementById('quality-answer-content').value.trim();
+    const tagsInput = document.getElementById('quality-answer-tags').value.trim();
+    const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+    const answerId = document.getElementById('quality-answer-id').value.trim();
+
+    if (!question || !content) {
+        showToast('问题和回答内容不能为空', 'error');
+        return;
+    }
+
+    if (answerId) {
+        // 更新现有回答
+        const updatedAnswer = {
+            question: question,
+            content: content,
+            tags: tags
+        };
+
+        if (updateQualityAnswer(answerId, updatedAnswer)) {
+            showToast('优质回答更新成功', 'success');
+            closeAddQualityAnswerModal();
+            loadQualityAnswersList();
+        } else {
+            showToast('优质回答更新失败', 'error');
+        }
+    } else {
+        // 添加新回答
+        const answer = {
+            question: question,
+            content: content,
+            tags: tags
+        };
+
+        if (addQualityAnswer(answer)) {
+            showToast('优质回答添加成功', 'success');
+            closeAddQualityAnswerModal();
+            loadQualityAnswersList();
+        } else {
+            showToast('优质回答添加失败', 'error');
+        }
+    }
+}
+
+// 加载优质回答列表
+function loadQualityAnswersList() {
+    const answersList = document.getElementById('quality-answers-list');
+    if (!answersList) return;
+
+    const qualityAnswers = loadQualityAnswers();
+
+    if (qualityAnswers.entries.length === 0) {
+        answersList.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #94a3b8; font-size: 14px;">
+                优质回答库为空，请添加回答
+            </div>
+        `;
+        return;
+    }
+
+    const answersHtml = qualityAnswers.entries.map(answer => {
+        return `
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <h6 style="margin: 0; font-size: 14px; font-weight: 600; color: #1e293b; flex: 1; min-width: 0;">${escapeHtml(answer.question)}</h6>
+                    <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                        <button onclick="viewQualityAnswer('${answer.id}')" style="padding: 4px 8px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                            查看
+                        </button>
+                        <button onclick="editQualityAnswer('${answer.id}')" style="padding: 4px 8px; background: #f0fdf4; color: #22c55e; border: 1px solid #bbf7d0; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                            编辑
+                        </button>
+                        <button onclick="deleteQualityAnswer('${answer.id}'); loadQualityAnswersList();" style="padding: 4px 8px; background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                            删除
+                        </button>
+                    </div>
+                </div>
+                <p style="margin: 8px 0; font-size: 12px; color: #64748b; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                    ${escapeHtml(answer.content)}
+                </p>
+                ${answer.tags.length > 0 ? `
+                    <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
+                        ${answer.tags.map(tag => `
+                            <span style="padding: 2px 8px; background: #f1f5f9; color: #475569; border-radius: 12px; font-size: 10px;">${escapeHtml(tag)}</span>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                <div style="margin-top: 8px; font-size: 11px; color: #94a3b8;">
+                    更新于 ${new Date(answer.updatedAt).toLocaleString()}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    answersList.innerHTML = answersHtml;
+}
+
+// 查看优质回答详情
+function viewQualityAnswer(answerId) {
+    const qualityAnswers = loadQualityAnswers();
+    const answer = qualityAnswers.entries.find(a => a.id === answerId);
+
+    if (!answer) {
+        showToast('优质回答不存在', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('view-quality-answer-modal');
+    if (modal) {
+        document.getElementById('view-quality-answer-question').textContent = answer.question;
+        document.getElementById('view-quality-answer-content').innerHTML = formatAIResponse(answer.content);
+
+        const tagsContainer = document.getElementById('view-quality-answer-tags');
+        if (answer.tags.length > 0) {
+            tagsContainer.innerHTML = answer.tags.map(tag => `
+                <span style="padding: 4px 12px; background: #f1f5f9; color: #475569; border-radius: 12px; font-size: 12px;">${escapeHtml(tag)}</span>
+            `).join('');
+        } else {
+            tagsContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">无标签</span>';
+        }
+
+        document.getElementById('view-quality-answer-date').textContent = `更新于 ${new Date(answer.updatedAt).toLocaleString()}`;
+        modal.style.display = 'flex';
+    }
+}
+
+// 关闭查看优质回答模态窗口
+function closeViewQualityAnswerModal() {
+    const modal = document.getElementById('view-quality-answer-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 编辑优质回答
+function editQualityAnswer(answerId) {
+    const qualityAnswers = loadQualityAnswers();
+    const answer = qualityAnswers.entries.find(a => a.id === answerId);
+
+    if (!answer) {
+        showToast('优质回答不存在', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('add-quality-answer-modal');
+    if (modal) {
+        // 填充表单数据
+        document.getElementById('quality-answer-question').value = answer.question;
+        document.getElementById('quality-answer-content').value = answer.content;
+        document.getElementById('quality-answer-tags').value = answer.tags.join(', ');
+
+        // 保存当前编辑的回答ID
+        document.getElementById('quality-answer-id').value = answerId;
+
+        // 修改标题和按钮文本
+        const titleElement = document.getElementById('quality-answer-modal-title');
+        if (titleElement) {
+            titleElement.textContent = '编辑优质回答';
+        }
+
+        const saveButton = modal.querySelector('.api-config-btn-save');
+        if (saveButton) {
+            saveButton.textContent = '更新';
+        }
+
+        modal.style.display = 'flex';
+    }
+}
+
+// 保存知识库条目
+function saveKnowledgeEntry() {
+    const title = document.getElementById('knowledge-title').value.trim();
+    const content = document.getElementById('knowledge-content').value.trim();
+    const tagsInput = document.getElementById('knowledge-tags').value.trim();
+    const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+    const entryId = document.getElementById('knowledge-entry-id').value.trim();
+
+    if (!title || !content) {
+        showToast('标题和内容不能为空', 'error');
+        return;
+    }
+
+    if (entryId) {
+        // 更新现有条目
+        const updatedEntry = {
+            title: title,
+            content: content,
+            tags: tags
+        };
+
+        if (updateKnowledgeEntry(entryId, updatedEntry)) {
+            showToast('知识库条目更新成功', 'success');
+            closeAddKnowledgeEntryModal();
+            loadKnowledgeEntries();
+        } else {
+            showToast('知识库条目更新失败', 'error');
+        }
+    } else {
+        // 添加新条目
+        const entry = {
+            title: title,
+            content: content,
+            tags: tags
+        };
+
+        if (addKnowledgeEntry(entry)) {
+            showToast('知识库条目添加成功', 'success');
+            closeAddKnowledgeEntryModal();
+            loadKnowledgeEntries();
+        } else {
+            showToast('知识库条目添加失败', 'error');
+        }
+    }
+}
+
+// 加载知识库条目
+function loadKnowledgeEntries() {
+    const entriesList = document.getElementById('knowledge-entries-list');
+    if (!entriesList) return;
+
+    const knowledgeBase = loadKnowledgeBase();
+
+    if (knowledgeBase.entries.length === 0) {
+        entriesList.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #94a3b8; font-size: 14px;">
+                知识库为空，请添加条目
+            </div>
+        `;
+        return;
+    }
+
+    const entriesHtml = knowledgeBase.entries.map(entry => {
+        return `
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <h6 style="margin: 0; font-size: 14px; font-weight: 600; color: #1e293b; flex: 1; min-width: 0;">${escapeHtml(entry.title)}</h6>
+                    <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                        <button onclick="viewKnowledgeEntry('${entry.id}')" style="padding: 4px 8px; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                            查看
+                        </button>
+                        <button onclick="editKnowledgeEntry('${entry.id}')" style="padding: 4px 8px; background: #f0fdf4; color: #22c55e; border: 1px solid #bbf7d0; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                            编辑
+                        </button>
+                        <button onclick="deleteKnowledgeEntry('${entry.id}'); loadKnowledgeEntries();" style="padding: 4px 8px; background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                            删除
+                        </button>
+                    </div>
+                </div>
+                <p style="margin: 8px 0; font-size: 12px; color: #64748b; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                    ${escapeHtml(entry.content)}
+                </p>
+                ${entry.tags.length > 0 ? `
+                    <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
+                        ${entry.tags.map(tag => `
+                            <span style="padding: 2px 8px; background: #f1f5f9; color: #475569; border-radius: 12px; font-size: 10px;">${escapeHtml(tag)}</span>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                <div style="margin-top: 8px; font-size: 11px; color: #94a3b8;">
+                    更新于 ${new Date(entry.updatedAt).toLocaleString()}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    entriesList.innerHTML = entriesHtml;
+}
+
+// 查看知识库条目详情
+function viewKnowledgeEntry(entryId) {
+    const knowledgeBase = loadKnowledgeBase();
+    const entry = knowledgeBase.entries.find(e => e.id === entryId);
+
+    if (!entry) {
+        showToast('知识库条目不存在', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('view-knowledge-entry-modal');
+    if (modal) {
+        document.getElementById('view-knowledge-title').textContent = entry.title;
+        document.getElementById('view-knowledge-content').innerHTML = formatAIResponse(entry.content);
+
+        const tagsContainer = document.getElementById('view-knowledge-tags');
+        if (entry.tags.length > 0) {
+            tagsContainer.innerHTML = entry.tags.map(tag => `
+                <span style="padding: 4px 12px; background: #f1f5f9; color: #475569; border-radius: 12px; font-size: 12px;">${escapeHtml(tag)}</span>
+            `).join('');
+        } else {
+            tagsContainer.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">无标签</span>';
+        }
+
+        document.getElementById('view-knowledge-date').textContent = `更新于 ${new Date(entry.updatedAt).toLocaleString()}`;
+        modal.style.display = 'flex';
+    }
+}
+
+// 关闭查看知识库条目模态窗口
+function closeViewKnowledgeEntryModal() {
+    const modal = document.getElementById('view-knowledge-entry-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 编辑知识库条目
+function editKnowledgeEntry(entryId) {
+    const knowledgeBase = loadKnowledgeBase();
+    const entry = knowledgeBase.entries.find(e => e.id === entryId);
+
+    if (!entry) {
+        showToast('知识库条目不存在', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('add-knowledge-entry-modal');
+    if (modal) {
+        // 填充表单数据
+        document.getElementById('knowledge-title').value = entry.title;
+        document.getElementById('knowledge-content').value = entry.content;
+        document.getElementById('knowledge-tags').value = entry.tags.join(', ');
+
+        // 保存当前编辑的条目ID
+        document.getElementById('knowledge-entry-id').value = entryId;
+
+        // 修改标题和按钮文本
+        const titleElement = document.getElementById('knowledge-entry-modal-title');
+        if (titleElement) {
+            titleElement.textContent = '编辑知识库条目';
+        }
+
+        const saveButton = modal.querySelector('.api-config-btn-save');
+        if (saveButton) {
+            saveButton.textContent = '更新';
+        }
+
+        modal.style.display = 'flex';
     }
 }
 
@@ -809,9 +1958,18 @@ function openAIAnalysis() {
 
     // 加载对话列表
     loadConversationList();
-    
+
     // 初始化搜索功能
     initConversationSearch();
+
+    // 初始化知识库状态
+    initKnowledgeBaseStatus();
+
+    // 初始化优质回答状态
+    initQualityAnswersStatus();
+
+    // 初始化错误案例状态
+    initErrorCasesStatus();
 
     if (!selectedImages || selectedImages.length === 0) {
         // 不选择图片进入，默认选择第一个历史对话
@@ -833,13 +1991,13 @@ function openAIAnalysis() {
                     </div>
                 `;
             }
-            
+
             // 清空图片显示
             const aiImageCount = document.getElementById('ai-image-count');
             if (aiImageCount) {
                 aiImageCount.textContent = '0张';
             }
-            
+
             const imagesContainer = document.getElementById('ai-selected-images');
             if (imagesContainer) {
                 imagesContainer.innerHTML = `
@@ -853,7 +2011,7 @@ function openAIAnalysis() {
         // 选择图片进入，新建一个对话但不发送消息
         // 保存当前选中的图片到全局变量
         currentSelectedImages = selectedImages;
-        
+
         // 生成对话标题（由图片名称拼接而成）
         const imageNames = selectedImages.map(img => removeFileExtension(img.name));
         let conversationTitle = imageNames.join('、');
@@ -861,7 +2019,7 @@ function openAIAnalysis() {
         if (conversationTitle.length > 20) {
             conversationTitle = conversationTitle.substring(0, 20) + '...';
         }
-        
+
         // 创建新对话
         const newConversation = {
             id: Date.now().toString(),
@@ -876,14 +2034,14 @@ function openAIAnalysis() {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
-        
+
         // 保存新对话
         saveConversationHistory(newConversation);
-        
+
         // 选择新创建的对话
         currentConversation = newConversation;
         selectConversation(newConversation.id);
-        
+
         // 重新加载对话列表
         loadConversationList();
     }
@@ -899,31 +2057,31 @@ function closeAIAnalysis() {
 
 // 加载对话列表
 function loadConversationList(searchKeyword = '') {
-    console.log('Loading conversation list...');
+
     const conversationItems = document.getElementById('ai-conversation-items');
     if (!conversationItems) {
-        console.log('ai-conversation-items element not found');
+
         return;
     }
-    
+
     let conversations = getConversationList();
-    
+
     // 应用搜索过滤
     if (searchKeyword) {
         const keyword = searchKeyword.toLowerCase();
-        conversations = conversations.filter(conv => 
+        conversations = conversations.filter(conv =>
             conv.title.toLowerCase().includes(keyword) ||
-            (conv.messages && conv.messages.some(msg => 
+            (conv.messages && conv.messages.some(msg =>
                 msg.content.toLowerCase().includes(keyword)
             ))
         );
     }
-    
-    console.log('Retrieved conversations:', conversations);
-    console.log('Conversation count:', conversations.length);
-    
+
+
+
+
     if (conversations.length === 0) {
-        console.log('No conversations found, showing empty state');
+
         conversationItems.innerHTML = `
             <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 14px;">
                 ${searchKeyword ? '未找到匹配的对话' : '暂无对话历史'}
@@ -931,8 +2089,8 @@ function loadConversationList(searchKeyword = '') {
         `;
         return;
     }
-    
-    console.log('Rendering conversation list...');
+
+
     conversationItems.innerHTML = conversations.map(conv => {
         const imageCount = conv.images ? conv.images.length : 0;
         return `
@@ -955,14 +2113,14 @@ function loadConversationList(searchKeyword = '') {
         </div>
         `;
     }).join('');
-    console.log('Conversation list rendered successfully');
+
 }
 
 // 初始化搜索功能
 function initConversationSearch() {
     const searchInput = document.getElementById('ai-conversation-search');
     if (searchInput) {
-        searchInput.addEventListener('input', function() {
+        searchInput.addEventListener('input', function () {
             loadConversationList(this.value);
         });
     }
@@ -970,19 +2128,15 @@ function initConversationSearch() {
 
 // 选择对话
 function selectConversation(conversationId) {
-    console.log('Selecting conversation:', conversationId);
+
     const conversation = loadConversationHistory(conversationId);
     if (!conversation) {
         showToast('对话未找到', 'error');
         return;
     }
-    
-    console.log('Loaded conversation:', conversation);
-    console.log('Messages count:', conversation.messages ? conversation.messages.length : 0);
-    console.log('Images count:', conversation.images ? conversation.images.length : 0);
-    
+
     currentConversation = conversation;
-    
+
     // 更新对话列表的高亮状态
     document.querySelectorAll('.conversation-item').forEach(item => {
         if (item.dataset.id === conversationId) {
@@ -993,17 +2147,16 @@ function selectConversation(conversationId) {
             item.style.background = 'white';
         }
     });
-    
+
     // 显示对话消息
     const aiChatMessages = document.getElementById('ai-chat-messages');
     if (aiChatMessages) {
         // 清空之前的消息
         aiChatMessages.innerHTML = '';
-        
+
         if (!conversation.messages || conversation.messages.length === 0) {
-            console.log('No messages found, showing empty state with recommended questions');
             const hasImages = conversation.images && conversation.images.length > 0;
-            
+
             let recommendedQuestions = '';
             if (hasImages) {
                 const imageCount = conversation.images.length;
@@ -1025,11 +2178,14 @@ function selectConversation(conversationId) {
                             <button onclick="askRecommendedQuestion('这张图片的构图和色彩运用有什么特点？')" style="padding: 12px 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #475569; cursor: pointer; transition: all 0.2s; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                                 🖌️ 分析图片的构图和色彩
                             </button>
+                            <button onclick="askRecommendedQuestion('根据这张 DSC 图谱，分析该材料的主要成分、占比及可能存在的添加剂')" style="padding: 12px 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #475569; cursor: pointer; transition: all 0.2s; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                📊 分析DSC图谱材料成分
+                            </button>
                         </div>
                     </div>
                 `;
             }
-            
+
             aiChatMessages.innerHTML = `
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px;">
                     <div style="font-size: 64px; margin-bottom: 24px;">💬</div>
@@ -1041,9 +2197,8 @@ function selectConversation(conversationId) {
                 </div>
             `;
         } else {
-            console.log('Rendering', conversation.messages.length, 'messages');
             const messagesHtml = conversation.messages.map((msg, index) => {
-                console.log(`Rendering message ${index}:`, msg);
+
                 if (msg.role === 'user') {
                     return `
                         <div class="ai-message ai-user" style="display: flex; gap: 12px; justify-content: flex-end; margin-bottom: 20px;">
@@ -1074,6 +2229,14 @@ function selectConversation(conversationId) {
                                         </svg>
                                         下载PDF
                                     </button>
+                                    <button onclick="markAsError('${conversation.id}', ${index})" style="padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; color: #f59e0b; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                        </svg>
+                                        标记错误
+                                    </button>
                                     <button onclick="deleteMessage('${conversation.id}', ${index})" style="padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; color: #ef4444; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M3 6h18"></path>
@@ -1088,51 +2251,50 @@ function selectConversation(conversationId) {
                     `;
                 }
             }).join('');
-            
+
             aiChatMessages.innerHTML = messagesHtml;
-            console.log('Messages HTML length:', messagesHtml.length);
-            
+
             // 滚动到底部
             aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
         }
     }
-    
+
     // 显示对话的图片
     const conversationImages = conversation.images || [];
-    
+
     // 更新图片数量显示
     const aiImageCount = document.getElementById('ai-image-count');
     if (aiImageCount) {
         aiImageCount.textContent = `${conversationImages.length}张`;
     }
-    
+
     // 显示选中的图片
-          const imagesContainer = document.getElementById('ai-selected-images');
-          if (imagesContainer) {
-              // 修改容器样式，设置为flex row wrap布局
-              imagesContainer.style.display = 'flex';
-              imagesContainer.style.flexDirection = 'row';
-              imagesContainer.style.flexWrap = 'wrap';
-              imagesContainer.style.gap = '16px';
-              imagesContainer.style.alignContent = 'flex-start'; // 确保内容从顶部开始排列
-              
-              // 添加响应式样式，当宽度缩减到270px时，显示一张图片
-              const styleId = 'ai-images-responsive-style';
-              let styleElement = document.getElementById(styleId);
-              if (!styleElement) {
-                  styleElement = document.createElement('style');
-                  styleElement.id = styleId;
-                  document.head.appendChild(styleElement);
-              }
-              styleElement.textContent = `
+    const imagesContainer = document.getElementById('ai-selected-images');
+    if (imagesContainer) {
+        // 修改容器样式，设置为flex row wrap布局
+        imagesContainer.style.display = 'flex';
+        imagesContainer.style.flexDirection = 'row';
+        imagesContainer.style.flexWrap = 'wrap';
+        imagesContainer.style.gap = '16px';
+        imagesContainer.style.alignContent = 'flex-start'; // 确保内容从顶部开始排列
+
+        // 添加响应式样式，当宽度缩减到270px时，显示一张图片
+        const styleId = 'ai-images-responsive-style';
+        let styleElement = document.getElementById(styleId);
+        if (!styleElement) {
+            styleElement = document.createElement('style');
+            styleElement.id = styleId;
+            document.head.appendChild(styleElement);
+        }
+        styleElement.textContent = `
                   @media (max-width: 270px) {
                       #ai-selected-images > div {
                           width: 100% !important;
                       }
                   }
               `;
-              
-              imagesContainer.innerHTML = conversationImages.map((img, index) => `
+
+        imagesContainer.innerHTML = conversationImages.map((img, index) => `
                   <div style="display: flex; flex-direction: column; gap: 12px; background: white; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.3s; width: calc(50% - 8px);">
                       <div style="position: relative; cursor: pointer; border-radius: 8px; overflow: hidden; border: 2px solid #e2e8f0; transition: all 0.3s; height: 120px;" onclick="zoomAIImage('${img.data}')">
                           <img src="${img.data}" alt="${img.name}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;">
@@ -1144,7 +2306,7 @@ function selectConversation(conversationId) {
                       </div>
                   </div>
               `).join('');
-          }
+    }
 }
 
 // HTML转义函数
@@ -1161,16 +2323,16 @@ function startNewAnalysis() {
         showToast('没有可分析的图片', 'warning');
         return;
     }
-    
+
     // 创建新对话
     currentConversation = createNewConversation(currentSelectedImages);
-    
+
     // 更新对话列表
     loadConversationList();
-    
+
     // 选择新创建的对话
     selectConversation(currentConversation.id);
-    
+
     // 开始分析图片
     analyzeImageWithAI(currentSelectedImages);
 }
@@ -1179,10 +2341,10 @@ function startNewAnalysis() {
 function createNewConversationFromUI() {
     // 创建新对话，即使没有图片
     currentConversation = createNewConversation(currentSelectedImages || []);
-    
+
     // 更新对话列表
     loadConversationList();
-    
+
     // 选择新创建的对话
     selectConversation(currentConversation.id);
 }
@@ -1193,9 +2355,9 @@ function deleteConversationFromUI(conversationId) {
         // 在删除前获取对话列表，找到被删除对话的位置
         const conversationsBeforeDelete = getConversationList();
         const deletedIndex = conversationsBeforeDelete.findIndex(conv => conv.id === conversationId);
-        
+
         deleteConversationHistory(conversationId);
-        
+
         // 如果删除的是当前对话，清空聊天消息
         if (currentConversation && currentConversation.id === conversationId) {
             currentConversation = null;
@@ -1212,13 +2374,13 @@ function deleteConversationFromUI(conversationId) {
                 `;
             }
         }
-        
+
         // 更新对话列表
         loadConversationList();
-        
+
         // 获取剩余的对话列表
         const remainingConversations = getConversationList();
-        
+
         if (remainingConversations.length > 0) {
             // 尝试聚焦到下一个对话，如果不存在则聚焦到上一个
             let conversationToFocus = null;
@@ -1229,7 +2391,7 @@ function deleteConversationFromUI(conversationId) {
                 // 没有下一个对话，聚焦到最后一个
                 conversationToFocus = remainingConversations[remainingConversations.length - 1];
             }
-            
+
             // 聚焦到找到的对话
             if (conversationToFocus) {
                 selectConversation(conversationToFocus.id);
@@ -1240,7 +2402,7 @@ function deleteConversationFromUI(conversationId) {
             if (aiImageCount) {
                 aiImageCount.textContent = '0张';
             }
-            
+
             const imagesContainer = document.getElementById('ai-selected-images');
             if (imagesContainer) {
                 imagesContainer.innerHTML = `
@@ -1250,7 +2412,7 @@ function deleteConversationFromUI(conversationId) {
                 `;
             }
         }
-        
+
         showToast('对话已删除', 'success');
     }
 }
@@ -1262,7 +2424,7 @@ function renameConversation(conversationId) {
         showToast('对话未找到', 'error');
         return;
     }
-    
+
     const newTitle = prompt('请输入新的对话标题：', conversation.title);
     if (newTitle && newTitle.trim()) {
         conversation.title = newTitle.trim();
@@ -1294,7 +2456,7 @@ function closeAIImageZoom() {
 // 格式化AI返回的文本为结构化HTML
 function formatAIResponse(text) {
     if (!text) return '';
-    
+
     // 使用marked库解析Markdown
     if (typeof marked !== 'undefined') {
         // 配置marked选项
@@ -1302,33 +2464,33 @@ function formatAIResponse(text) {
             breaks: true,
             gfm: true
         });
-        
+
         // 解析Markdown并返回HTML
         const html = marked.parse(text);
         return html;
     }
-    
+
     // 如果marked库不可用，使用备用格式化方法
     let formattedText = text.replace(/\n/g, '<br>');
-    
+
     // 处理标题（### 标题）
     formattedText = formattedText.replace(/^### (.*?)$/gm, '<h3 style="margin: 16px 0 8px 0; font-size: 18px; font-weight: 600; color: #1e293b;">$1</h3>');
     formattedText = formattedText.replace(/^#### (.*?)$/gm, '<h4 style="margin: 14px 0 6px 0; font-size: 16px; font-weight: 600; color: #334155;">$1</h4>');
-    
+
     // 处理列表
     formattedText = formattedText.replace(/^- (.*?)$/gm, '<div style="margin: 4px 0; padding-left: 20px; position: relative;"><span style="position: absolute; left: 0; top: 6px; width: 6px; height: 6px; background: #6366f1; border-radius: 50%;"></span>$1</div>');
     formattedText = formattedText.replace(/^\d+\. (.*?)$/gm, '<div style="margin: 4px 0; padding-left: 24px; position: relative;"><span style="position: absolute; left: 0; top: 2px; font-size: 14px; font-weight: 500; color: #6366f1;">$&</span></div>');
-    
+
     // 处理粗体
     formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: 600; color: #1e293b;">$1</strong>');
-    
+
     // 处理段落
     formattedText = formattedText.replace(/(<br>){2,}/g, '</p><p style="margin: 8px 0; line-height: 1.6;">');
     formattedText = '<p style="margin: 8px 0; line-height: 1.6;">' + formattedText + '</p>';
-    
+
     // 移除多余的空段落
     formattedText = formattedText.replace(/<p[^>]*><\/p>/g, '');
-    
+
     return formattedText;
 }
 
@@ -1433,14 +2595,14 @@ async function analyzeImageWithAI(selectedImages) {
         const resultElement = aiResponseElement.querySelector(`#${messageId}-content`);
         const actionsElement = aiResponseElement.querySelector(`#${messageId}-actions`);
         const fullResponse = await callAIAnalysis(imageData, resultElement);
-        
+
         // 格式化AI返回的结果
         if (fullResponse && resultElement) {
             resultElement.innerHTML = formatAIResponse(fullResponse);
             if (actionsElement) {
                 actionsElement.style.display = 'flex';
             }
-            
+
             // 保存对话历史
             if (currentConversationId) {
                 // 加载原始对话
@@ -1451,21 +2613,21 @@ async function analyzeImageWithAI(selectedImages) {
                         role: 'assistant',
                         content: fullResponse
                     });
-                    
+
                     // 更新对话标题（如果是第一条消息）
                     if (originalConversation.title === '新对话') {
                         originalConversation.title = '图片分析结果';
                     }
-                    
+
                     // 更新时间戳
                     originalConversation.updatedAt = new Date().toISOString();
-                    
+
                     // 保存到localStorage
                     saveConversationHistory(originalConversation);
-                    
+
                     // 更新对话列表
                     loadConversationList();
-                    
+
                     // 如果当前显示的是原始对话，更新显示
                     if (currentConversation && currentConversation.id === currentConversationId) {
                         currentConversation = originalConversation;
@@ -1476,7 +2638,7 @@ async function analyzeImageWithAI(selectedImages) {
             }
         }
     } catch (error) {
-        console.error('AI分析失败:', error);
+
         messagesContainer.innerHTML = `
             <div class="ai-message ai-assistant" style="display: flex; gap: 12px; justify-content: flex-start; margin-bottom: 20px;">
                 <div style="flex: 1; padding: 12px 16px; background: #fef2f2; color: #b91c1c; border-radius: 18px 18px 18px 4px; font-size: 14px; line-height: 1.6; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #fecaca;">
@@ -1500,13 +2662,13 @@ function askRecommendedQuestion(question) {
         showToast('请先选择或创建对话', 'error');
         return;
     }
-    
+
     // 将问题设置到输入框
     const aiInput = document.getElementById('ai-input');
     if (aiInput) {
         aiInput.value = question;
     }
-    
+
     // 调用sendAIMessage函数发送问题
     sendAIMessage();
 }
@@ -1515,9 +2677,9 @@ function askRecommendedQuestion(question) {
 async function sendAIMessage() {
     const input = document.getElementById('ai-input');
     const message = input?.value.trim();
-    
+
     if (!message) return;
-    
+
     // 检查是否有当前对话
     if (!currentConversation) {
         showToast('请先选择或创建一个对话', 'warning');
@@ -1538,12 +2700,12 @@ async function sendAIMessage() {
     // 加载当前对话的历史消息
     const conversation = loadConversationHistory(currentConversationId);
     let messagesHtml = '';
-    
+
     if (conversation && conversation.messages && conversation.messages.length > 0) {
         messagesHtml = conversation.messages.map(msg => {
             const messageId = `ai-message-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             const messageIndex = conversation.messages.indexOf(msg);
-            
+
             if (msg.role === 'user') {
                 // 用户消息
                 return `
@@ -1693,11 +2855,11 @@ async function sendAIMessage() {
 
         // 准备请求数据
         const config = getAPIConfig();
-        
+
         // 获取历史消息
         const messages = [];
         const messageElements = messagesContainer.querySelectorAll('.ai-message');
-        
+
         messageElements.forEach((element, index) => {
             if (index < messageElements.length - 1) { // 排除当前正在输入的消息
                 const isUser = element.classList.contains('ai-user');
@@ -1714,82 +2876,70 @@ async function sendAIMessage() {
         // 调用AI API（流式输出）
         const resultElement = aiResponseElement.querySelector(`#${messageId}-content`);
         const actionsElement = aiResponseElement.querySelector(`#${messageId}-actions`);
-        
+
         // 获取当前对话的图片信息
         const conversationImages = currentConversation.images || [];
-        console.log('Current conversation images:', conversationImages.length);
-        
+
         // 检查是否是第一次对话（没有消息历史）
         const isFirstMessage = !currentConversation.messages || currentConversation.messages.length === 0;
-        console.log('Is first message:', isFirstMessage);
-        
+
         // 只有在第一次对话时才上传图片信息，后续对话基于该图片继续聊天
         const imagesToSend = isFirstMessage ? conversationImages : [];
-        console.log('Images to send:', imagesToSend.length);
-        
+
         const fullResponse = await callOpenRouterAPI(imagesToSend, resultElement, messages);
-        
+
         // 格式化AI返回的结果
-        console.log('Full response received:', fullResponse ? 'yes' : 'no');
-        console.log('Current conversation:', currentConversation);
         if (fullResponse && resultElement) {
             resultElement.innerHTML = formatAIResponse(fullResponse);
             if (actionsElement) {
                 actionsElement.style.display = 'flex';
             }
-            
+
             // 保存对话历史
             if (currentConversationId) {
-                console.log('Saving conversation history...');
-                
+
                 // 加载原始对话
                 const originalConversation = loadConversationHistory(currentConversationId);
                 if (originalConversation) {
-                    console.log('Original conversation found:', originalConversation.id);
-                    console.log('Messages before:', originalConversation.messages);
-                    
                     // 添加用户消息
                     originalConversation.messages.push({
                         role: 'user',
                         content: message
                     });
-                    
+
                     // 添加AI回复
                     originalConversation.messages.push({
                         role: 'assistant',
                         content: fullResponse
                     });
-                    
-                    console.log('Messages after:', originalConversation.messages);
-                    
+
+
                     // 更新对话标题（如果是第一条消息）
                     if (originalConversation.title === '新对话') {
                         originalConversation.title = message.substring(0, 20) + (message.length > 20 ? '...' : '');
                     }
-                    
+
                     // 更新时间戳
                     originalConversation.updatedAt = new Date().toISOString();
-                    
+
                     // 保存到localStorage
                     saveConversationHistory(originalConversation);
-                    console.log('Conversation saved to localStorage');
-                    
+
                     // 更新对话列表
                     loadConversationList();
-                    
+
                     // 如果当前显示的是原始对话，更新显示
                     if (currentConversation && currentConversation.id === currentConversationId) {
                         currentConversation = originalConversation;
                     }
                 }
             } else {
-                console.log('No current conversation to save to');
             }
         } else {
-            console.log('Cannot save: fullResponse or resultElement is missing');
+
         }
     } catch (error) {
-        console.error('AI回复失败:', error);
+
         messagesContainer.innerHTML += `
             <div class="ai-message ai-assistant" style="display: flex; gap: 12px; justify-content: flex-start; margin-bottom: 20px;">
                 <div style="flex: 1; padding: 12px 16px; background: #fef2f2; color: #b91c1c; border-radius: 18px 18px 18px 4px; font-size: 14px; line-height: 1.6; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #fecaca;">
@@ -1814,7 +2964,7 @@ function initAIAnalysisEvents() {
     // 回车键发送消息
     const aiInput = document.getElementById('ai-input');
     if (aiInput) {
-        aiInput.addEventListener('keypress', function(e) {
+        aiInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendAIMessage();
@@ -1831,7 +2981,7 @@ function initAIAnalysisEvents() {
     // 点击放大层背景关闭
     const aiImageZoomOverlay = document.getElementById('ai-image-zoom-overlay');
     if (aiImageZoomOverlay) {
-        aiImageZoomOverlay.addEventListener('click', function(e) {
+        aiImageZoomOverlay.addEventListener('click', function (e) {
             if (e.target === this) {
                 closeAIImageZoom();
             }
@@ -1846,12 +2996,11 @@ function copyAIMessage(messageId) {
         showToast('消息内容未找到', 'error');
         return;
     }
-    
+
     const text = contentElement.innerText || contentElement.textContent;
     navigator.clipboard.writeText(text).then(() => {
         showToast('已复制到剪贴板', 'success');
     }).catch(err => {
-        console.error('复制失败:', err);
         showToast('复制失败', 'error');
     });
 }
@@ -1863,26 +3012,24 @@ function downloadAIMessageAsPDF(messageId) {
         showToast('消息内容未找到', 'error');
         return;
     }
-    
+
     try {
         // 检查html2canvas是否可用
         if (typeof html2canvas === 'undefined') {
-            console.error('html2canvas库未加载');
             showToast('PDF库加载失败，请刷新页面重试', 'error');
             return;
         }
-        
+
         // 检查jspdf是否可用
         if (typeof window.jspdf === 'undefined') {
-            console.error('jspdf库未加载');
             showToast('PDF库加载失败，请刷新页面重试', 'error');
             return;
         }
-        
+
         const { jsPDF } = window.jspdf;
-        
+
         showToast('正在生成PDF，请稍候...', 'info');
-        
+
         // 创建临时容器来渲染内容
         const tempContainer = document.createElement('div');
         tempContainer.style.cssText = `
@@ -1897,11 +3044,11 @@ function downloadAIMessageAsPDF(messageId) {
             line-height: 1.6;
             color: #1e293b;
         `;
-        
+
         // 复制内容到临时容器
         tempContainer.innerHTML = contentElement.innerHTML;
         document.body.appendChild(tempContainer);
-        
+
         // 使用html2canvas转换为canvas
         html2canvas(tempContainer, {
             scale: 2,
@@ -1915,19 +3062,19 @@ function downloadAIMessageAsPDF(messageId) {
                 unit: 'mm',
                 format: 'a4'
             });
-            
+
             const imgData = canvas.toDataURL('image/png');
             const imgWidth = 210;
             const pageHeight = 297;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            
+
             let heightLeft = imgHeight;
             let position = 0;
-            
+
             // 添加图片到PDF
             doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
             heightLeft -= pageHeight;
-            
+
             // 如果内容超过一页，添加新页面
             while (heightLeft > 0) {
                 position = heightLeft - imgHeight;
@@ -1935,21 +3082,21 @@ function downloadAIMessageAsPDF(messageId) {
                 doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                 heightLeft -= pageHeight;
             }
-            
+
             // 清理临时容器
             document.body.removeChild(tempContainer);
-            
+
             // 保存PDF
             const fileName = `AI回复_${new Date().toLocaleString('zh-CN').replace(/[\/\s:]/g, '-')}.pdf`;
             doc.save(fileName);
             showToast('PDF下载成功', 'success');
         }).catch(error => {
-            console.error('PDF生成失败:', error);
+
             document.body.removeChild(tempContainer);
             showToast('PDF生成失败', 'error');
         });
     } catch (error) {
-        console.error('PDF下载失败:', error);
+
         showToast('PDF下载失败', 'error');
     }
 }
@@ -1960,10 +3107,10 @@ function parseMarkdownToPdfMake(markdown) {
     const lines = markdown.split('\n');
     let currentList = null;
     let currentCode = null;
-    
+
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
-        
+
         // 处理代码块
         if (line.startsWith('```')) {
             if (currentCode) {
@@ -1979,12 +3126,12 @@ function parseMarkdownToPdfMake(markdown) {
             }
             continue;
         }
-        
+
         if (currentCode) {
             currentCode.push(line);
             continue;
         }
-        
+
         // 处理标题
         if (line.startsWith('### ')) {
             if (currentList) {
@@ -1997,7 +3144,7 @@ function parseMarkdownToPdfMake(markdown) {
             });
             continue;
         }
-        
+
         if (line.startsWith('#### ')) {
             if (currentList) {
                 content.push({ ul: currentList, style: 'list' });
@@ -2009,7 +3156,7 @@ function parseMarkdownToPdfMake(markdown) {
             });
             continue;
         }
-        
+
         // 处理列表
         if (line.startsWith('- ')) {
             if (!currentList) {
@@ -2018,7 +3165,7 @@ function parseMarkdownToPdfMake(markdown) {
             currentList.push(line.substring(2));
             continue;
         }
-        
+
         // 处理数字列表
         const numberedMatch = line.match(/^(\d+)\. (.+)$/);
         if (numberedMatch) {
@@ -2028,21 +3175,21 @@ function parseMarkdownToPdfMake(markdown) {
             currentList.push(numberedMatch[2]);
             continue;
         }
-        
+
         // 结束列表
         if (currentList && line === '') {
             content.push({ ul: currentList, style: 'list' });
             currentList = null;
             continue;
         }
-        
+
         // 处理普通文本
         if (line !== '') {
             if (currentList) {
                 content.push({ ul: currentList, style: 'list' });
                 currentList = null;
             }
-            
+
             // 处理粗体
             let text = line;
             const boldMatches = text.match(/\*\*(.*?)\*\*/g);
@@ -2069,12 +3216,12 @@ function parseMarkdownToPdfMake(markdown) {
             }
         }
     }
-    
+
     // 处理未结束的列表
     if (currentList) {
         content.push({ ul: currentList, style: 'list' });
     }
-    
+
     return content;
 }
 
@@ -2084,55 +3231,337 @@ function deleteMessage(conversationId, messageIndex) {
         showToast('删除消息失败：参数无效', 'error');
         return;
     }
-    
+
     try {
         // 加载对话历史
         const conversation = loadConversationHistory(conversationId);
-        
+
         if (!conversation || !conversation.messages || !Array.isArray(conversation.messages)) {
             showToast('删除消息失败：对话历史不存在', 'error');
             return;
         }
-        
+
         // 检查消息索引是否有效
         if (messageIndex < 0 || messageIndex >= conversation.messages.length) {
             showToast('删除消息失败：消息不存在', 'error');
             return;
         }
-        
+
         // 检查是否是AI消息
         if (conversation.messages[messageIndex].role !== 'assistant') {
             showToast('只能删除AI回复的消息', 'error');
             return;
         }
-        
+
         // 计算要删除的消息数量
         // 如果AI消息前面有用户消息，则同时删除
         let messagesToDelete = 1; // 默认只删除AI消息
         let startIndex = messageIndex;
-        
+
         // 检查前一条消息是否是用户消息
         if (messageIndex > 0 && conversation.messages[messageIndex - 1].role === 'user') {
             messagesToDelete = 2;
             startIndex = messageIndex - 1;
         }
-        
+
         // 删除消息
         conversation.messages.splice(startIndex, messagesToDelete);
-        
+
         // 保存更新后的对话历史
         saveConversationHistory(conversation);
-        
+
         // 重新加载对话
         if (currentConversation && currentConversation.id === conversationId) {
             selectConversation(conversationId);
         }
-        
+
         showToast('消息删除成功', 'success');
     } catch (error) {
-        console.error('删除消息失败:', error);
+
         showToast('删除消息失败', 'error');
     }
+}
+
+// 标记消息为错误并添加到错误案例库
+function markAsError(conversationId, messageIndex) {
+    if (!conversationId || messageIndex === undefined) {
+        showToast('标记错误失败：参数无效', 'error');
+        return;
+    }
+
+    try {
+        // 加载对话历史
+        const conversation = loadConversationHistory(conversationId);
+
+        if (!conversation || !conversation.messages || !Array.isArray(conversation.messages)) {
+            showToast('标记错误失败：对话历史不存在', 'error');
+            return;
+        }
+
+        // 获取AI回答消息
+        const aiMessage = conversation.messages[messageIndex];
+        if (!aiMessage || aiMessage.role !== 'assistant') {
+            showToast('标记错误失败：指定消息不是AI回答', 'error');
+            return;
+        }
+
+        // 获取对应的用户问题（如果有的话）
+        let userQuestion = '';
+        if (messageIndex > 0) {
+            const userMessage = conversation.messages[messageIndex - 1];
+            if (userMessage && userMessage.role === 'user') {
+                userQuestion = userMessage.content;
+            }
+        }
+
+        // 创建标记错误的模态窗口
+        const modalHtml = `
+            <div id="mark-error-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 3000; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center;">
+                <div style="background: white; border-radius: 20px; padding: 32px; width: 90%; max-width: 600px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                        <div>
+                            <h3 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 12px;">
+                                <span>⚠️</span>
+                                标记为错误案例
+                            </h3>
+                            <p style="margin: 0; font-size: 14px; color: #64748b;">将此回答标记为错误，并添加到错误案例库中</p>
+                        </div>
+                        <button onclick="document.getElementById('mark-error-modal').remove()" style="background: none; border: none; font-size: 24px; color: #94a3b8; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">×</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #334155;">问题</label>
+                        <textarea id="mark-error-question" style="width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; line-height: 1.6; resize: vertical; min-height: 80px; box-sizing: border-box;">${escapeHtml(userQuestion)}</textarea>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #334155;">错误回答</label>
+                        <textarea id="mark-error-wrong-answer" style="width: 100%; padding: 12px 16px; border: 2px solid #fecaca; border-radius: 10px; font-size: 14px; line-height: 1.6; resize: vertical; min-height: 120px; box-sizing: border-box; background: #fef2f2;">${escapeHtml(aiMessage.content)}</textarea>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #334155;">正确回答</label>
+                        <textarea id="mark-error-correct-answer" style="width: 100%; padding: 12px 16px; border: 2px solid #bbf7d0; border-radius: 10px; font-size: 14px; line-height: 1.6; resize: vertical; min-height: 120px; box-sizing: border-box; background: #f0fdf4;" placeholder="请输入正确的回答"></textarea>
+                    </div>
+                    
+                    <div style="margin-bottom: 24px;">
+                        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #334155;">错误原因（AI会自动分析）</label>
+                        <div style="display: flex; gap: 8px; align-items: flex-start;">
+                            <textarea id="mark-error-reason" style="flex: 1; padding: 12px 16px; border: 2px solid #fde68a; border-radius: 10px; font-size: 14px; line-height: 1.6; resize: vertical; min-height: 80px; box-sizing: border-box; background: #fffbeb;" placeholder="AI将自动分析错误原因" readonly></textarea>
+                            <button onclick="analyzeErrorReasonManually('mark-error')" style="padding: 12px 16px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35); white-space: nowrap; height: fit-content; margin-top: 2px;">分析原因</button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 24px;">
+                        <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #334155;">标签（用逗号分隔）</label>
+                        <input type="text" id="mark-error-tags" style="width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box;" placeholder="例如：DSC, 成分分析, 误判">
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button onclick="document.getElementById('mark-error-modal').remove()" style="padding: 12px 24px; background: white; color: #64748b; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;">取消</button>
+                        <button onclick="saveErrorCaseFromMark('${conversationId}', ${messageIndex})" style="padding: 12px 24px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);">保存错误案例</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 添加模态窗口到页面
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    } catch (error) {
+
+        showToast('标记错误失败', 'error');
+    }
+}
+
+// 从标记错误窗口保存错误案例
+function saveErrorCaseFromMark(conversationId, messageIndex) {
+    const question = document.getElementById('mark-error-question').value.trim();
+    const wrongAnswer = document.getElementById('mark-error-wrong-answer').value.trim();
+    const correctAnswer = document.getElementById('mark-error-correct-answer').value.trim();
+    const errorReason = document.getElementById('mark-error-reason').value.trim();
+    const tagsInput = document.getElementById('mark-error-tags').value.trim();
+    const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+
+    if (!question || !wrongAnswer || !correctAnswer || !errorReason) {
+        showToast('问题、错误回答、正确回答和错误原因不能为空', 'error');
+        return;
+    }
+
+    // 显示加载状态
+    showToast('正在保存错误案例...', 'info');
+
+    const errorCase = {
+        question: question,
+        wrongAnswer: wrongAnswer,
+        correctAnswer: correctAnswer,
+        errorReason: errorReason,
+        tags: tags
+    };
+
+    if (addErrorCase(errorCase)) {
+        showToast('错误案例添加成功', 'success');
+        // 关闭模态窗口
+        document.getElementById('mark-error-modal').remove();
+    } else {
+        showToast('错误案例添加失败', 'error');
+    }
+}
+
+// 让AI分析错误原因（流式输出）
+function analyzeErrorReason(question, wrongAnswer, correctAnswer, tags, callback, reasonElementId = null) {
+    // 获取API配置
+    const config = getAPIConfig();
+
+    // 检查API密钥是否存在
+    if (!config.apiKey) {
+        if (reasonElementId) {
+            const reasonElement = document.getElementById(reasonElementId);
+            if (reasonElement) {
+                reasonElement.value = '请先配置API密钥';
+            }
+        }
+        showToast('请先配置API密钥', 'error');
+        callback('请先配置API密钥');
+        return;
+    }
+
+    // 构建分析错误原因的提示词
+    const analysisPrompt = `
+请分析以下AI回答的错误原因：
+
+问题：${question}
+
+错误回答：${wrongAnswer}
+
+正确回答：${correctAnswer}
+
+请从以下几个方面分析错误原因：
+1. 错误的具体表现
+2. 可能的原因
+3. 如何避免类似错误
+
+分析结果要详细、专业，并且要以第一人称的角度分析，仿佛是AI自己在反思错误。
+`;
+
+    // 调用AI API分析错误原因（流式）
+    fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + config.apiKey
+        },
+        body: JSON.stringify({
+            model: config.model || 'openai/gpt-4o-mini',
+            messages: [
+                {
+                    role: 'system',
+                    content: '你是一个专业的AI错误分析助手，擅长分析AI回答中的错误原因。'
+                },
+                {
+                    role: 'user',
+                    content: analysisPrompt
+                }
+            ],
+            temperature: 0.7,
+            max_tokens: 1000,
+            stream: true
+        })
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('API请求失败');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let fullResponse = '';
+
+            function read() {
+                return reader.read().then(({ done, value }) => {
+                    if (done) {
+                        callback(fullResponse);
+                        return;
+                    }
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // 处理流式数据
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // 保留最后不完整的行
+
+                    for (const line of lines) {
+                        if (line.trim() === '') continue;
+                        if (line.startsWith('data: ')) {
+                            const data = line.substring(6);
+                            if (data === '[DONE]') continue;
+
+                            try {
+                                const chunk = JSON.parse(data);
+                                if (chunk.choices && chunk.choices.length > 0) {
+                                    const delta = chunk.choices[0].delta;
+                                    if (delta.content) {
+                                        fullResponse += delta.content;
+                                        // 流式输出到内容区
+                                        if (reasonElementId) {
+                                            const reasonElement = document.getElementById(reasonElementId);
+                                            if (reasonElement) {
+                                                reasonElement.value = fullResponse;
+                                                reasonElement.scrollTop = reasonElement.scrollHeight;
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (error) {
+
+                            }
+                        }
+                    }
+
+                    return read();
+                });
+            }
+
+            return read();
+        })
+        .catch(error => {
+
+            if (reasonElementId) {
+                const reasonElement = document.getElementById(reasonElementId);
+                if (reasonElement) {
+                    reasonElement.value = 'AI分析错误原因失败，请手动添加';
+                }
+            }
+            callback('AI分析错误原因失败，请手动添加');
+        });
+}
+
+// 手动触发AI分析错误原因
+function analyzeErrorReasonManually(prefix) {
+    const question = document.getElementById(`${prefix}-question`).value.trim();
+    const wrongAnswer = document.getElementById(`${prefix}-wrong-answer`).value.trim();
+    const correctAnswer = document.getElementById(`${prefix}-correct-answer`).value.trim();
+    const reasonElementId = `${prefix}-reason`;
+
+    if (!question || !wrongAnswer || !correctAnswer) {
+        showToast('问题、错误回答和正确回答不能为空', 'error');
+        return;
+    }
+
+    // 清空错误原因字段并显示加载提示
+    const reasonElement = document.getElementById(reasonElementId);
+    if (reasonElement) {
+        reasonElement.value = 'AI正在分析错误原因...';
+    }
+
+    // 显示加载状态
+    showToast('AI正在分析错误原因...', 'info');
+
+    // 让AI分析错误原因（流式输出）
+    analyzeErrorReason(question, wrongAnswer, correctAnswer, [], (errorReason) => {
+        showToast('错误原因分析完成', 'success');
+    }, reasonElementId);
 }
 
 // 解析HTML内容为pdfmake格式
@@ -2140,7 +3569,7 @@ function parseHtmlToPdfMake(html) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     const content = [];
-    
+
     function processNode(node) {
         if (node.nodeType === Node.TEXT_NODE) {
             const text = node.textContent.trim();
@@ -2149,7 +3578,7 @@ function parseHtmlToPdfMake(html) {
             }
         } else if (node.nodeType === Node.ELEMENT_NODE) {
             const tagName = node.tagName.toLowerCase();
-            
+
             switch (tagName) {
                 case 'h1':
                 case 'h2':
@@ -2166,7 +3595,7 @@ function parseHtmlToPdfMake(html) {
                         });
                     }
                     break;
-                    
+
                 case 'p':
                     const paragraphChildren = [];
                     processChildren(node, paragraphChildren);
@@ -2178,7 +3607,7 @@ function parseHtmlToPdfMake(html) {
                         });
                     }
                     break;
-                    
+
                 case 'strong':
                 case 'b':
                     const boldChildren = [];
@@ -2187,7 +3616,7 @@ function parseHtmlToPdfMake(html) {
                         content.push({ text: boldChildren, bold: true });
                     }
                     break;
-                    
+
                 case 'em':
                 case 'i':
                     const italicChildren = [];
@@ -2196,7 +3625,7 @@ function parseHtmlToPdfMake(html) {
                         content.push({ text: italicChildren, italics: true });
                     }
                     break;
-                    
+
                 case 'u':
                     const underlineChildren = [];
                     processChildren(node, underlineChildren);
@@ -2204,7 +3633,7 @@ function parseHtmlToPdfMake(html) {
                         content.push({ text: underlineChildren, decoration: 'underline' });
                     }
                     break;
-                    
+
                 case 'code':
                     const codeText = node.textContent.trim();
                     if (codeText) {
@@ -2215,7 +3644,7 @@ function parseHtmlToPdfMake(html) {
                         });
                     }
                     break;
-                    
+
                 case 'pre':
                     const preText = node.textContent.trim();
                     if (preText) {
@@ -2227,7 +3656,7 @@ function parseHtmlToPdfMake(html) {
                         });
                     }
                     break;
-                    
+
                 case 'ul':
                 case 'ol':
                     const listItems = [];
@@ -2246,7 +3675,7 @@ function parseHtmlToPdfMake(html) {
                         });
                     }
                     break;
-                    
+
                 case 'table':
                     const tableBody = [];
                     const tableRows = node.querySelectorAll('tr');
@@ -2276,11 +3705,11 @@ function parseHtmlToPdfMake(html) {
                         });
                     }
                     break;
-                    
+
                 case 'br':
                     content.push({ text: '' });
                     break;
-                    
+
                 case 'hr':
                     content.push({
                         canvas: [
@@ -2297,13 +3726,13 @@ function parseHtmlToPdfMake(html) {
                         margin: [0, 10, 0, 10]
                     });
                     break;
-                    
+
                 default:
                     processChildren(node, content);
             }
         }
     }
-    
+
     function processChildren(parentNode, targetArray) {
         parentNode.childNodes.forEach(child => {
             if (child.nodeType === Node.TEXT_NODE) {
@@ -2313,7 +3742,7 @@ function parseHtmlToPdfMake(html) {
                 }
             } else if (child.nodeType === Node.ELEMENT_NODE) {
                 const tagName = child.tagName.toLowerCase();
-                
+
                 switch (tagName) {
                     case 'strong':
                     case 'b':
@@ -2323,7 +3752,7 @@ function parseHtmlToPdfMake(html) {
                             targetArray.push({ text: boldChildren, bold: true });
                         }
                         break;
-                        
+
                     case 'em':
                     case 'i':
                         const italicChildren = [];
@@ -2332,7 +3761,7 @@ function parseHtmlToPdfMake(html) {
                             targetArray.push({ text: italicChildren, italics: true });
                         }
                         break;
-                        
+
                     case 'u':
                         const underlineChildren = [];
                         processChildren(child, underlineChildren);
@@ -2340,7 +3769,7 @@ function parseHtmlToPdfMake(html) {
                             targetArray.push({ text: underlineChildren, decoration: 'underline' });
                         }
                         break;
-                        
+
                     case 'code':
                         const codeText = child.textContent.trim();
                         if (codeText) {
@@ -2351,18 +3780,18 @@ function parseHtmlToPdfMake(html) {
                             });
                         }
                         break;
-                        
+
                     case 'br':
                         targetArray.push({ text: '' });
                         break;
-                        
+
                     default:
                         processChildren(child, targetArray);
                 }
             }
         });
     }
-    
+
     processNode(doc.body);
     return content;
 }
