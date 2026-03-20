@@ -5,6 +5,7 @@ let currentConversation = null; // 当前对话
 let currentSelectedImages = []; // 当前选中的图片
 let isKnowledgeBaseEnabled = true; // 知识库启用状态
 let isQualityAnswersEnabled = true; // 优质回答启用状态
+let modelStatusCache = {}; // 模型状态缓存 {modelId: {status, text, detail, timestamp}}
 
 // 初始化知识库状态
 function initKnowledgeBaseStatus() {
@@ -478,12 +479,24 @@ function updateModelChips() {
 }
 
 // 检查模型可用性
-async function checkModelAvailability(modelId, apiKey = null) {
+async function checkModelAvailability(modelId, apiKey = null, forceCheck = false) {
     if (!modelId) return;
 
     const config = getAPIConfig();
     const key = apiKey || config.apiKey;
     if (!key) return;
+
+    // 检查缓存中是否有该模型的状态（24小时内有效）
+    const cacheKey = `${modelId}_${key.substring(0, 8)}`;
+    const cachedStatus = modelStatusCache[cacheKey];
+    const now = Date.now();
+    const cacheValidTime = 24 * 60 * 60 * 1000; // 24小时
+
+    if (!forceCheck && cachedStatus && (now - cachedStatus.timestamp) < cacheValidTime) {
+        // 使用缓存的状态
+        showModelStatus(cachedStatus.status, cachedStatus.text, cachedStatus.detail);
+        return;
+    }
 
     showModelStatus('checking', '检测模型可用性...');
 
@@ -505,23 +518,44 @@ async function checkModelAvailability(modelId, apiKey = null) {
         });
 
         if (response.ok) {
-            showModelStatus('available', '模型可用', '可以正常使用此模型');
+            const status = 'available';
+            const text = '模型可用';
+            const detail = '可以正常使用此模型';
+            showModelStatus(status, text, detail);
+            // 保存到缓存
+            modelStatusCache[cacheKey] = { status, text, detail, timestamp: now };
         } else {
             const errorData = await response.json();
             const errorMsg = errorData.error?.message || '';
+            let status = 'unavailable';
+            let text = '';
+            let detail = '';
 
             if (errorMsg.includes('not available in your region') || errorMsg.includes('region')) {
-                showModelStatus('unavailable', '地区不可用', '此模型在你所在地区受限，请选择其他模型');
+                text = '地区不可用';
+                detail = '此模型在你所在地区受限，请选择其他模型';
             } else if (errorMsg.includes('insufficient') || errorMsg.includes('quota') || errorMsg.includes('credits')) {
-                showModelStatus('unavailable', '余额不足', '请充值后使用此模型');
+                text = '余额不足';
+                detail = '请充值后使用此模型';
             } else if (errorMsg.includes('rate limit')) {
-                showModelStatus('unavailable', '请求限制', '请求过于频繁，请稍后再试');
+                text = '请求限制';
+                detail = '请求过于频繁，请稍后再试';
             } else {
-                showModelStatus('unavailable', '模型不可用', errorMsg);
+                text = '模型不可用';
+                detail = errorMsg;
             }
+
+            showModelStatus(status, text, detail);
+            // 保存到缓存
+            modelStatusCache[cacheKey] = { status, text, detail, timestamp: now };
         }
     } catch (error) {
-        showModelStatus('unavailable', '检测失败', error.message);
+        const status = 'unavailable';
+        const text = '检测失败';
+        const detail = error.message;
+        showModelStatus(status, text, detail);
+        // 保存到缓存
+        modelStatusCache[cacheKey] = { status, text, detail, timestamp: now };
     }
 }
 
@@ -2436,13 +2470,92 @@ function renameConversation(conversationId) {
 }
 
 // 放大AI分析窗口中的图片
-function zoomAIImage(imageData) {
+let aiZoomImages = [];
+let aiZoomIndex = 0;
+
+function zoomAIImage(imageDataOrIndex) {
     const aiImageZoomImg = document.getElementById('ai-image-zoom-img');
     const aiImageZoomOverlay = document.getElementById('ai-image-zoom-overlay');
-    if (aiImageZoomImg && aiImageZoomOverlay) {
-        aiImageZoomImg.src = imageData;
-        aiImageZoomOverlay.style.display = 'flex';
+    const aiImageZoomSidebar = document.getElementById('ai-image-zoom-sidebar');
+
+    if (!aiImageZoomImg || !aiImageZoomOverlay || !aiImageZoomSidebar) return;
+
+    if (!currentConversation || !currentConversation.images || currentConversation.images.length === 0) {
+        showToast('当前对话没有图片', 'warning');
+        return;
     }
+
+    aiZoomImages = currentConversation.images;
+
+    if (typeof imageDataOrIndex === 'number') {
+        aiZoomIndex = imageDataOrIndex;
+    } else {
+        aiZoomIndex = aiZoomImages.findIndex(img => img.data === imageDataOrIndex);
+        if (aiZoomIndex === -1) {
+            aiZoomIndex = 0;
+        }
+    }
+
+    if (aiZoomIndex < 0 || aiZoomIndex >= aiZoomImages.length) {
+        aiZoomIndex = 0;
+    }
+
+    const currentImage = aiZoomImages[aiZoomIndex];
+    aiImageZoomImg.src = currentImage.data;
+
+    aiImageZoomSidebar.innerHTML = aiZoomImages.map((img, index) => `
+        <div style="margin-bottom: 12px; cursor: pointer; border-radius: 8px; overflow: hidden; border: 2px solid ${index === aiZoomIndex ? '#4f46e5' : 'transparent'}; transition: all 0.3s;" onclick="zoomAIImage(${index})">
+            <img src="${img.data}" alt="${img.name}" style="width: 100%; height: 100px; object-fit: cover; display: block;">
+            <div style="background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${index + 1}. ${removeFileExtension(img.name)}
+            </div>
+        </div>
+    `).join('');
+
+    aiImageZoomOverlay.style.display = 'flex';
+
+    setTimeout(() => {
+        const activeThumb = aiImageZoomSidebar.querySelector(`[onclick="zoomAIImage(${aiZoomIndex})"]`);
+        if (activeThumb) {
+            activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, 50);
+
+    aiImageZoomOverlay.onwheel = (e) => {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+            if (aiZoomIndex > 0) {
+                zoomAIImage(aiZoomIndex - 1);
+            }
+        } else {
+            if (aiZoomIndex < aiZoomImages.length - 1) {
+                zoomAIImage(aiZoomIndex + 1);
+            }
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (aiImageZoomOverlay.style.display !== 'flex') return;
+
+        switch (e.key) {
+            case 'ArrowLeft':
+                if (aiZoomIndex > 0) {
+                    zoomAIImage(aiZoomIndex - 1);
+                }
+                break;
+            case 'ArrowRight':
+                if (aiZoomIndex < aiZoomImages.length - 1) {
+                    zoomAIImage(aiZoomIndex + 1);
+                }
+                break;
+            case 'Escape':
+                closeAIImageZoom();
+                break;
+        }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    aiImageZoomOverlay.dataset.keydownHandler = 'true';
 }
 
 // 关闭图片放大层
@@ -2450,6 +2563,31 @@ function closeAIImageZoom() {
     const aiImageZoomOverlay = document.getElementById('ai-image-zoom-overlay');
     if (aiImageZoomOverlay) {
         aiImageZoomOverlay.style.display = 'none';
+
+        if (aiImageZoomOverlay.dataset.keydownHandler === 'true') {
+            const handleKeyDown = (e) => {
+                if (aiImageZoomOverlay.style.display !== 'flex') return;
+
+                switch (e.key) {
+                    case 'ArrowLeft':
+                        if (aiZoomIndex > 0) {
+                            zoomAIImage(aiZoomIndex - 1);
+                        }
+                        break;
+                    case 'ArrowRight':
+                        if (aiZoomIndex < aiZoomImages.length - 1) {
+                            zoomAIImage(aiZoomIndex + 1);
+                        }
+                        break;
+                    case 'Escape':
+                        closeAIImageZoom();
+                        break;
+                }
+            };
+
+            document.removeEventListener('keydown', handleKeyDown);
+            aiImageZoomOverlay.dataset.keydownHandler = 'false';
+        }
     }
 }
 
@@ -3800,4 +3938,44 @@ function parseHtmlToPdfMake(html) {
 function initAIAnalysis() {
     initAPIConfig();
     initAIAnalysisEvents();
+}
+
+// 打开整合的知识管理模态窗口
+function openKnowledgeManagementModal() {
+    document.getElementById('knowledge-management-modal').style.display = 'flex';
+    // 初始化标签页内容
+    switchKnowledgeTab('knowledge');
+}
+
+// 关闭整合的知识管理模态窗口
+function closeKnowledgeManagementModal() {
+    document.getElementById('knowledge-management-modal').style.display = 'none';
+}
+
+// 切换知识管理标签页
+function switchKnowledgeTab(tabName) {
+    // 隐藏所有标签页内容
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.style.display = 'none';
+    });
+
+    // 移除所有标签的活跃状态
+    document.querySelectorAll('.tab-link').forEach(link => {
+        link.classList.remove('active');
+    });
+
+    // 显示选中的标签页内容
+    document.getElementById(tabName + '-tab').style.display = 'block';
+
+    // 激活选中的标签
+    document.querySelector(`.tab-link[data-tab="${tabName}"]`).classList.add('active');
+
+    // 重新加载对应标签页的数据
+    if (tabName === 'knowledge') {
+        loadKnowledgeEntries();
+    } else if (tabName === 'quality') {
+        loadQualityAnswers();
+    } else if (tabName === 'error') {
+        loadErrorCasesList();
+    }
 }

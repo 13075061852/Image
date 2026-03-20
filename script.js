@@ -606,9 +606,15 @@ function updateUI() {
         mobileToggleBtn.innerText = buttonText;
     }
 
-
-
-    // 更新模式切换按钮文本，保留图标
+    // 控制删除选中按钮的显示/隐藏
+    const deleteBtn = document.getElementById('delete-selected-btn');
+    if (deleteBtn) {
+        if (selectedIds.size > 0) {
+            deleteBtn.style.display = 'inline-block';
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+    }
     const modeToggleBtn = document.getElementById('mode-toggle-btn');
     if (modeToggleBtn) {
         console.log('Updating desktop mode toggle button, text:', currentModeFilter); // 调试日志
@@ -2179,6 +2185,7 @@ async function deleteSelectedImages() {
 
             // 清空选中状态
             selectedIds.clear();
+            updateUI(); // 更新UI，隐藏删除按钮
 
             showToast(`已删除 ${deletedCount} 张图片`, 'success');
             closeConfirmDialog();
@@ -2537,51 +2544,15 @@ async function updateExistingImageWithTags(file, category = '', tags = []) {
 
 // 对比功能 - 分页和布局管理
 let currentPage = 0;
-let compareImages = [];
 let zoomIndex = 0; // 当前放大查看的图片索引（相对于 compareImages）
-const IMAGES_PER_PAGE = 4;
 let imageZoomLevels = {}; // 存储每张图片的缩放级别
 
-function openCompare() {
-    if (selectedIds.size === 0) return showToast("请先选择至少一张图片进行对比", 'warning');
-
-    compareImages = allImages.filter(img => selectedIds.has(img.id));
-    currentPage = 0;
-    zoomIndex = 0; // 初始化缩放索引
-    imageZoomLevels = {}; // 重置缩放级别
-    renderComparePage();
-    document.getElementById('compare-overlay').style.display = 'flex';
-}
-
-function closeCompare() {
-    document.getElementById('compare-overlay').style.display = 'none';
-    currentPage = 0;
-}
-
-// 对比页面翻页功能
-function nextPage() {
-    const totalPages = Math.ceil(compareImages.length / IMAGES_PER_PAGE);
-    if (currentPage < totalPages - 1) {
-        currentPage++;
-        renderComparePage();
-    }
-}
-
-function prevPage() {
-    if (currentPage > 0) {
-        currentPage--;
-        renderComparePage();
-    }
-}
+// 对比功能已移除，相关函数已删除
 
 // 键盘快捷键支持
 document.addEventListener('keydown', (e) => {
-    const compareOverlay = document.getElementById('compare-overlay');
     const zoomOverlay = document.getElementById('zoom-overlay');
-    const isCompareOpen = compareOverlay && compareOverlay.style.display === 'flex';
     const isZoomOpen = zoomOverlay && zoomOverlay.style.display === 'flex';
-
-
 
     // 如果放大层打开，优先处理放大层的快捷键
     if (isZoomOpen) {
@@ -2601,19 +2572,6 @@ document.addEventListener('keydown', (e) => {
             }
         }
         return;
-    }
-
-    if (isCompareOpen) {
-        if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            prevPage();
-        } else if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            nextPage();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            closeCompare();
-        }
     }
 });
 

@@ -114,9 +114,9 @@
         <div id="all-category-btn" class="nav-item active" onclick="filterCategory('all')">全部</div>
         <div id="category-list"></div>
         <hr style="width:100%; border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 24px 0;">
-        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()"
-            style="width: 100%; margin-top: auto; border-radius: 14px; padding: 16px 20px; font-size: 16px; font-weight: 600; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">+
-            上传图片</button>
+        <button class="btn btn-primary" onclick="showCategoryManagementModal()"
+            style="width: 100%; margin-top: auto; border-radius: 14px; padding: 16px 20px; font-size: 16px; font-weight: 600; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">📁
+            分类管理</button>
         <input type="file" id="fileInput" hidden multiple accept="image/*">
     </div>
 
@@ -130,19 +130,15 @@
                 </div>
                 <!-- 菜单栏 -->
                 <button class="btn btn-secondary" onclick="toggleSelectAll()" id="toggle-select-btn">✓ 全选</button>
+                <button class="btn btn-danger" onclick="deleteSelected()" id="delete-selected-btn"
+                    style="display: none;">🗑️ 删除选中</button>
                 <button class="btn btn-primary" onclick="toggleModeFilter()" id="mode-toggle-btn">📊 ALL</button>
                 <button class="btn btn-ai" onclick="openAIAnalysis()">🤖 AI分析</button>
                 <div class="dropdown">
                     <button class="btn btn-more">⋮ 更多</button>
                     <div class="dropdown-content">
-                        <button class="btn btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
-                        <button class="btn btn-compare" onclick="openCompare()">🔍 对比分析</button>
-                        <button class="btn btn-primary" onclick="showCategoryManagementModal()" id="manage-cat-btn">📁
-                            分类管理</button>
                         <button class="btn btn-config" onclick="showAPIConfigModal()">⚙️ 配置API</button>
-                        <button class="btn btn-knowledge" onclick="showKnowledgeBaseModal()">📚 知识库管理</button>
-                        <button class="btn btn-quality" onclick="showQualityAnswersModal()">⭐ 优质回答管理</button>
-                        <button class="btn btn-error" onclick="showErrorCasesModal()">⚠️ 错误案例管理</button>
+                        <button class="btn btn-knowledge" onclick="openKnowledgeManagementModal()">🧠 智能大脑</button>
                         <button class="btn btn-print" onclick="printSelected()">🖨️ 打印选中</button>
                         <button class="btn btn-export" onclick="exportSelected()">📤 导出选中</button>
                         <button class="btn btn-import" onclick="showImportDialog()">📥 导入数据</button>
@@ -160,12 +156,10 @@
                 <button class="btn btn-secondary" onclick="toggleSelectAll()" id="mobile-toggle-select-btn">✓
                     全选</button>
                 <button class="btn btn-primary" onclick="toggleModeFilter()" id="mobile-mode-toggle-btn">📊 ALL</button>
-                <button class="btn btn-compare" onclick="openCompare()">🔍 对比分析</button>
                 <button class="btn btn-ai" onclick="openAIAnalysis()">🤖 AI分析</button>
                 <button class="btn btn-print" onclick="printSelected()">🖨️ 打印选中</button>
                 <button class="btn btn-export" onclick="exportSelected()">📤 导出选中</button>
                 <button class="btn btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
-                <button class="btn btn-primary" onclick="showCategoryManagementModal()">📁 分类管理</button>
                 <button class="btn btn-import" onclick="showImportDialog()">📥 导入数据</button>
             </div>
         </header>
@@ -463,8 +457,17 @@
     <div id="ai-image-zoom-overlay"
         style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2100; align-items: center; justify-content: center;">
         <button type="button" id="ai-image-zoom-close" aria-label="关闭"
-            style="position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; border: none; border-radius: 50%; background: rgba(255,255,255,0.2); color: white; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 1;">×</button>
-        <img id="ai-image-zoom-img" src="" alt="" style="max-width: 92vw; max-height: 88vh; object-fit: contain;">
+            style="position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; border: none; border-radius: 50%; background: rgba(255,255,255,0.2); color: white; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 1;"
+            onclick="closeAIImageZoom()">×</button>
+        <div style="display: flex; width: 95vw; height: 90vh; gap: 20px;">
+            <div style="width: 200px; background: rgba(255,255,255,0.1); border-radius: 12px; overflow-y: auto; padding: 12px;"
+                id="ai-image-zoom-sidebar">
+            </div>
+            <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                <img id="ai-image-zoom-img" src="" alt=""
+                    style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px;">
+            </div>
+        </div>
     </div>
 
     <!-- API配置模态窗口 -->
@@ -529,6 +532,97 @@
                 <button type="button" class="api-config-btn api-config-btn-cancel"
                     onclick="closeAPIConfigModal()">取消</button>
                 <button type="button" class="api-config-btn api-config-btn-save" onclick="saveAPIConfig()">保存配置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 整合的知识库、优质回答、错误案例管理模态窗口 -->
+    <div id="knowledge-management-modal" class="dialog-overlay api-config-overlay" style="display: none;">
+        <div class="dialog-content api-config-dialog" style="max-width: 800px;">
+            <div class="api-config-header">
+                <div class="api-config-title-wrap">
+                    <span class="api-config-icon">📚</span>
+                    <h4 class="api-config-title">智能大脑</h4>
+                    <p class="api-config-desc">管理知识库、优质回答和错误案例</p>
+                </div>
+                <button type="button" class="api-config-close" onclick="closeKnowledgeManagementModal()"
+                    aria-label="关闭">×</button>
+            </div>
+
+            <!-- 标签页导航 -->
+            <div class="tab-navigation">
+                <button class="tab-link active" data-tab="knowledge" onclick="switchKnowledgeTab('knowledge')">
+                    <span class="tab-icon">📚</span>
+                    <span>知识库</span>
+                </button>
+                <button class="tab-link" data-tab="quality" onclick="switchKnowledgeTab('quality')">
+                    <span class="tab-icon">⭐</span>
+                    <span>优质回答</span>
+                </button>
+                <button class="tab-link" data-tab="error" onclick="switchKnowledgeTab('error')">
+                    <span class="tab-icon">⚠️</span>
+                    <span>错误案例</span>
+                </button>
+            </div>
+
+            <!-- 标签页内容 -->
+            <div class="api-config-body">
+                <!-- 知识库标签页 -->
+                <div id="knowledge-tab" class="tab-content active">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h5 style="margin: 0; font-size: 14px; font-weight: 600; color: #334155;">知识库条目</h5>
+                        <button onclick="showAddKnowledgeEntryModal()"
+                            style="padding: 8px 16px; background: #4f46e5; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; transition: background 0.2s;">
+                            + 添加条目
+                        </button>
+                    </div>
+                    <div id="knowledge-entries-list"
+                        style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+                        <!-- 知识库条目将通过JavaScript动态添加 -->
+                    </div>
+                </div>
+
+                <!-- 优质回答标签页 -->
+                <div id="quality-tab" class="tab-content" style="display: none;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h5 style="margin: 0; font-size: 14px; font-weight: 600; color: #334155;">优质回答列表</h5>
+                        <button onclick="showAddQualityAnswerModal()"
+                            style="padding: 8px 16px; background: #4f46e5; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; transition: background 0.2s;">
+                            + 添加回答
+                        </button>
+                    </div>
+                    <div id="quality-answers-list"
+                        style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+                        <!-- 优质回答将通过JavaScript动态添加 -->
+                    </div>
+                </div>
+
+                <!-- 错误案例标签页 -->
+                <div id="error-tab" class="tab-content" style="display: none;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div style="display: flex; gap: 12px;">
+                            <input type="text" id="error-cases-search" placeholder="搜索错误案例..."
+                                style="padding: 10px 14px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; width: 250px;">
+                            <button onclick="searchErrorCasesList()"
+                                style="padding: 10px 16px; background: #f1f5f9; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; cursor: pointer;">搜索</button>
+                        </div>
+                        <button onclick="showAddErrorCaseModal()"
+                            style="padding: 10px 20px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);">+
+                            添加错误案例</button>
+                    </div>
+                    <div id="error-cases-list"
+                        style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc;">
+                        <div style="padding: 40px; text-align: center; color: #64748b;">暂无错误案例</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="api-config-footer">
+                <button type="button" class="api-config-btn api-config-btn-cancel"
+                    onclick="closeKnowledgeManagementModal()">关闭</button>
             </div>
         </div>
     </div>
