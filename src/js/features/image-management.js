@@ -55,6 +55,7 @@ const initDB = () => {
 let allImages = [];
 let selectedIds = new Set();
 let currentFilter = 'all';
+let currentSearchTerm = '';
 let currentTagFilters = []; // 当前标签筛选（支持多选）
 let currentModeFilter = 'ALL'; // 当前模式过滤器 ('DSC', 'TGA', 'ALL')
 let currentDetailId = null; // 当前编辑详情的图片ID
@@ -71,6 +72,14 @@ let dragState = { // 拖动状态
     initialX: 0,
     initialY: 0
 };
+
+let galleryRenderToken = 0;
+let galleryRenderFrame = null;
+let searchDebounceTimer = null;
+let galleryImageObserver = null;
+
+const GALLERY_BATCH_SIZE = 24;
+const GALLERY_IMAGE_PLACEHOLDER = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="320" height="220" viewBox="0 0 320 220"%3E%3Crect width="320" height="220" fill="%23f1f5f9"/%3E%3Cpath d="M90 150l38-42 30 32 22-22 50 54H90z" fill="%23cbd5e1"/%3E%3Ccircle cx="120" cy="82" r="16" fill="%23dbe4ee"/%3E%3C/svg%3E';
 
 /**
  * =========================
@@ -413,49 +422,56 @@ function renderTags() {
     `;
 }
 
-// 渲染画廊
-function renderGallery() {
-    const container = document.getElementById('gallery');
-
-    // 应用主分类和标签的过滤
-    let filtered = allImages;
-
-    // 过滤掉空分类记录
-    filtered = filtered.filter(img => !img.isEmptyCategory);
+function getFilteredImages(searchTerm = currentSearchTerm) {
+    let filtered = allImages.filter(img => !img.isEmptyCategory);
 
     if (currentFilter !== 'all') {
         if (currentFilter === '其他') {
-            // 显示所有没有分类的图片以及明确分类为"其他"的图片
             filtered = filtered.filter(img => img.category === null || img.category === '' || img.category === '其他');
         } else {
             filtered = filtered.filter(img => img.category === currentFilter);
         }
     }
 
-    // 如果设置了标签过滤（支持多选）
     if (currentTagFilters.length > 0) {
         filtered = filtered.filter(img => {
             if (!img.tags || img.tags.length === 0) return false;
-            // 图片必须包含所有选中的标签
             return currentTagFilters.every(tag => img.tags.includes(tag));
         });
     }
 
-    // 应用模式过滤（注意：模式过滤在标签过滤之后应用）
     if (currentModeFilter && currentModeFilter !== 'ALL') {
         filtered = filtered.filter(img => hasSuffix(img.name, currentModeFilter));
     }
 
-    container.innerHTML = filtered.map(img => {
-        const tagsDisplay = img.tags && img.tags.length > 0 ? img.tags.join(', ') : '无标签';
-        const categoryDisplay = img.category ? img.category : '其他';
-        // 检测图片名称是否包含DSC或TGA后缀
-        const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' :
-            hasSuffix(img.name, 'TGA') ? 'TGA' : '';
-        return `
+    if (searchTerm) {
+        const keyword = searchTerm.toLowerCase();
+        filtered = filtered.filter(img => {
+            const nameMatch = removeFileExtension(img.name).toLowerCase().includes(keyword);
+            const categoryMatch = (img.category || '').toLowerCase().includes(keyword);
+            const tagsMatch = img.tags && img.tags.some(tag => tag.toLowerCase().includes(keyword));
+            return nameMatch || categoryMatch || tagsMatch;
+        });
+    }
+
+    return filtered;
+}
+
+function createImageCardMarkup(img) {
+    const categoryDisplay = img.category ? img.category : '其他';
+    const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' : hasSuffix(img.name, 'TGA') ? 'TGA' : '';
+
+    return `
         <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
             <div class="img-card-thumb">
-                <img src="${img.data}" loading="lazy" draggable="false" alt="">
+                <img
+                    src="${GALLERY_IMAGE_PLACEHOLDER}"
+                    data-image-src="${img.data}"
+                    loading="lazy"
+                    decoding="async"
+                    draggable="false"
+                    alt="${removeFileExtension(img.name)}"
+                >
                 ${suffix ? `<span class="mode-badge ${suffix.toLowerCase()}">${suffix}</span>` : ''}
             </div>
             <div class="img-info">
@@ -467,8 +483,116 @@ function renderGallery() {
             </div>
         </div>
     `;
-    }).join('');
-    updateUI();
+}
+
+function loadGalleryImage(imgEl) {
+    if (!imgEl || imgEl.dataset.loaded === 'true') {
+        return;
+    }
+
+    const actualSrc = imgEl.dataset.imageSrc;
+    if (!actualSrc) {
+        return;
+    }
+
+    imgEl.dataset.loaded = 'true';
+    imgEl.src = actualSrc;
+    imgEl.addEventListener('load', () => {
+        imgEl.classList.add('is-loaded');
+    }, { once: true });
+}
+
+function ensureGalleryImageObserver() {
+    if (typeof IntersectionObserver === 'undefined') {
+        return null;
+    }
+
+    if (galleryImageObserver) {
+        return galleryImageObserver;
+    }
+
+    galleryImageObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) {
+                return;
+            }
+
+            loadGalleryImage(entry.target);
+            galleryImageObserver.unobserve(entry.target);
+        });
+    }, {
+        root: document.getElementById('gallery'),
+        rootMargin: '240px 0px',
+        threshold: 0.01
+    });
+
+    return galleryImageObserver;
+}
+
+function observeGalleryImages(scope) {
+    const observer = ensureGalleryImageObserver();
+    const targets = scope.querySelectorAll('img[data-image-src]');
+
+    if (!observer) {
+        targets.forEach(loadGalleryImage);
+        return;
+    }
+
+    targets.forEach(imgEl => observer.observe(imgEl));
+}
+
+// 渲染画廊
+function renderGallery(images = getFilteredImages()) {
+    const container = document.getElementById('gallery');
+    if (!container) return;
+
+    galleryRenderToken += 1;
+    const token = galleryRenderToken;
+
+    if (galleryRenderFrame) {
+        cancelAnimationFrame(galleryRenderFrame);
+        galleryRenderFrame = null;
+    }
+
+    if (galleryImageObserver) {
+        galleryImageObserver.disconnect();
+    }
+
+    container.innerHTML = '';
+
+    if (images.length === 0) {
+        updateUI(images);
+        return;
+    }
+
+    let index = 0;
+    const renderBatch = () => {
+        if (token !== galleryRenderToken) {
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        const wrapper = document.createElement('div');
+        const batch = images.slice(index, index + GALLERY_BATCH_SIZE).map(createImageCardMarkup).join('');
+        wrapper.innerHTML = batch;
+
+        while (wrapper.firstElementChild) {
+            fragment.appendChild(wrapper.firstElementChild);
+        }
+
+        container.appendChild(fragment);
+        observeGalleryImages(container);
+        index += GALLERY_BATCH_SIZE;
+
+        if (index < images.length) {
+            galleryRenderFrame = requestAnimationFrame(renderBatch);
+        } else {
+            galleryRenderFrame = null;
+        }
+    };
+
+    renderBatch();
+    updateUI(images);
 }
 
 // 选择逻辑
@@ -559,7 +683,7 @@ function clearSelection() {
     renderCategories(); // 重新渲染分类以更新统计信息
 }
 
-function updateUI() {
+function updateUILegacy() {
     // 计算当前可见的图片数量和选中数量（供整个函数使用）
     let visible = allImages;
     // 过滤掉空分类记录
@@ -2905,76 +3029,100 @@ function saveDetail() {
 
 // 搜索功能
 function performSearch() {
-    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const input = document.getElementById('search-input');
+    currentSearchTerm = input ? input.value.trim().toLowerCase() : '';
 
-    // 应用搜索过滤
-    let filtered = allImages;
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+    }
 
-    // 过滤掉空分类记录
-    filtered = filtered.filter(img => !img.isEmptyCategory);
+    searchDebounceTimer = setTimeout(() => {
+        const filtered = getFilteredImages();
+        renderGallery(filtered);
+        renderCategories();
+        updateUI(filtered);
+    }, 120);
+}
 
-    if (currentFilter !== 'all') {
-        if (currentFilter === '其他') {
-            // 显示所有没有分类的图片以及明确分类为"其他"的图片
-            filtered = filtered.filter(img => img.category === null || img.category === '' || img.category === '其他');
-        } else {
-            filtered = filtered.filter(img => img.category === currentFilter);
+function selectAllVisible() {
+    const visible = getFilteredImages();
+
+    visible.forEach(img => {
+        if (img.id != null) {
+            selectedIds.add(img.id);
         }
-    }
+    });
 
-    // 如果设置了标签过滤（支持多选）
-    if (currentTagFilters.length > 0) {
-        filtered = filtered.filter(img => {
-            if (!img.tags || img.tags.length === 0) return false;
-            // 图片必须包含所有选中的标签
-            return currentTagFilters.every(tag => img.tags.includes(tag));
+    document.querySelectorAll('.img-card').forEach(card => {
+        const id = Number(card.getAttribute('data-id'));
+        if (selectedIds.has(id)) {
+            card.classList.add('selected');
+        }
+    });
+
+    updateUI(visible);
+    renderCategories();
+}
+
+function toggleSelectAll() {
+    const visible = getFilteredImages();
+    const visibleCount = visible.filter(img => img.id != null).length;
+    const selectedVisibleCount = visible.filter(img => selectedIds.has(img.id)).length;
+
+    if (selectedVisibleCount === visibleCount && visibleCount > 0) {
+        visible.forEach(img => {
+            if (img.id != null) {
+                selectedIds.delete(img.id);
+            }
+        });
+    } else {
+        visible.forEach(img => {
+            if (img.id != null) {
+                selectedIds.add(img.id);
+            }
         });
     }
 
-    // 应用模式过滤
-    if (currentModeFilter && currentModeFilter !== 'ALL') {
-        filtered = filtered.filter(img => hasSuffix(img.name, currentModeFilter));
+    document.querySelectorAll('.img-card').forEach(card => {
+        const id = Number(card.getAttribute('data-id'));
+        card.classList.toggle('selected', selectedIds.has(id));
+    });
+
+    updateUI(visible);
+    renderCategories();
+}
+
+function updateUILegacyOptimized() {
+    const visibleCount = visible.filter(img => img.id != null).length;
+    const selectedVisibleCount = visible.filter(img => selectedIds.has(img.id)).length;
+    const buttonText = selectedVisibleCount === visibleCount && visibleCount > 0 ? '✓ 取消全选' : '✓ 全选';
+
+    const toggleBtn = document.getElementById('toggle-select-btn');
+    if (toggleBtn) {
+        toggleBtn.innerText = buttonText;
     }
 
-    // 最后应用搜索过滤
-    if (searchTerm) {
-        filtered = filtered.filter(img => {
-            // 检查图片名称、分类或标签是否包含搜索词
-            const nameMatch = removeFileExtension(img.name).toLowerCase().includes(searchTerm);
-            const categoryMatch = (img.category || '').toLowerCase().includes(searchTerm);
-            const tagsMatch = img.tags && img.tags.some(tag => tag.toLowerCase().includes(searchTerm));
-
-            return nameMatch || categoryMatch || tagsMatch;
-        });
+    const mobileToggleBtn = document.getElementById('mobile-toggle-select-btn');
+    if (mobileToggleBtn) {
+        mobileToggleBtn.innerText = buttonText;
     }
 
-    // 渲染过滤后的结果
-    const container = document.getElementById('gallery');
-    container.innerHTML = filtered.map(img => {
-        const tagsDisplay = img.tags && img.tags.length > 0 ? img.tags.join(', ') : '无标签';
-        const categoryDisplay = img.category ? img.category : '其他';
-        // 检测图片名称是否包含DSC或TGA后缀
-        const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' :
-            hasSuffix(img.name, 'TGA') ? 'TGA' : '';
-        return `
-        <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
-            <div class="img-card-thumb">
-                <img src="${img.data}" loading="lazy" draggable="false" alt="">
-                ${suffix ? `<span class="mode-badge ${suffix.toLowerCase()}">${suffix}</span>` : ''}
-            </div>
-            <div class="img-info">
-                <strong class="img-card-title">${removeFileExtension(img.name)}</strong>
-                <span class="img-card-meta">${categoryDisplay} · ${img.date}</span>
-                <div class="img-tags">
-                    ${(img.tags && img.tags.length > 0) ? img.tags.map(tag => `<span class="tag-badge" style="background-color: ${getTagColor(tag)}">${tag}</span>`).join('') : ''}
-                </div>
-            </div>
-        </div>
-    `;
-    }).join('');
+    const deleteBtn = document.getElementById('delete-selected-btn');
+    if (deleteBtn) {
+        deleteBtn.style.display = selectedIds.size > 0 ? 'inline-block' : 'none';
+    }
 
-    updateUI();
-    renderCategories(); // 更新统计信息
+    const modeToggleBtn = document.getElementById('mode-toggle-btn');
+    if (modeToggleBtn) {
+        modeToggleBtn.innerHTML = `📳 ${currentModeFilter}`;
+    }
+
+    const mobileModeToggleBtn = document.getElementById('mobile-mode-toggle-btn');
+    if (mobileModeToggleBtn) {
+        mobileModeToggleBtn.innerHTML = `📳 ${currentModeFilter}`;
+    }
+
+    updateAllCategoryStats();
 }
 
 function closeDetail() {
@@ -2982,3 +3130,35 @@ function closeDetail() {
     currentDetailId = null;
 }
 
+function updateUI(visible = getFilteredImages()) {
+    const visibleCount = visible.filter(img => img.id != null).length;
+    const selectedVisibleCount = visible.filter(img => selectedIds.has(img.id)).length;
+    const buttonText = selectedVisibleCount === visibleCount && visibleCount > 0 ? '取消全选' : '全选';
+
+    const toggleBtn = document.getElementById('toggle-select-btn');
+    if (toggleBtn) {
+        toggleBtn.innerText = buttonText;
+    }
+
+    const mobileToggleBtn = document.getElementById('mobile-toggle-select-btn');
+    if (mobileToggleBtn) {
+        mobileToggleBtn.innerText = buttonText;
+    }
+
+    const deleteBtn = document.getElementById('delete-selected-btn');
+    if (deleteBtn) {
+        deleteBtn.style.display = selectedIds.size > 0 ? 'inline-block' : 'none';
+    }
+
+    const modeToggleBtn = document.getElementById('mode-toggle-btn');
+    if (modeToggleBtn) {
+        modeToggleBtn.textContent = `模式 ${currentModeFilter}`;
+    }
+
+    const mobileModeToggleBtn = document.getElementById('mobile-mode-toggle-btn');
+    if (mobileModeToggleBtn) {
+        mobileModeToggleBtn.textContent = `模式 ${currentModeFilter}`;
+    }
+
+    updateAllCategoryStats();
+}
