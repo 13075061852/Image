@@ -462,8 +462,8 @@ function createImageCardMarkup(img) {
     const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' : hasSuffix(img.name, 'TGA') ? 'TGA' : '';
 
     return `
-        <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
-            <div class="img-card-thumb">
+        <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})">
+            <div class="img-card-thumb" ondblclick="openDetail(${img.id}, event)">
                 <img
                     src="${GALLERY_IMAGE_PLACEHOLDER}"
                     data-image-src="${img.data}"
@@ -1246,9 +1246,267 @@ function closeExportOptions() {
     if (style) style.remove();
 }
 
-// 显示导入对话框
+let importPreviewState = null;
+
+function normalizeImportCategory(category) {
+    return category || '';
+}
+
+function getImportCategoryLabel(category) {
+    return category || '未分类';
+}
+
+async function readZipImportPreview(file) {
+    const zipContent = await JSZip.loadAsync(file);
+    const existingImagesByName = new Map(
+        allImages
+            .filter(img => !img.isEmptyCategory)
+            .map(img => [img.name, img])
+    );
+    const imageExtensions = new Set(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']);
+    const tagsInfo = zipContent.files['tags.json']
+        ? JSON.parse(await zipContent.files['tags.json'].async('text'))
+        : [];
+    const tagsMap = new Map(Array.isArray(tagsInfo) ? tagsInfo.map(info => [info.name, info.tags || []]) : []);
+    const entries = [];
+
+    for (const [filename, zipEntry] of Object.entries(zipContent.files)) {
+        if (zipEntry.dir || filename === 'tags.json') continue;
+
+        const parts = filename.split('/');
+        const category = parts.length > 1 ? normalizeImportCategory(parts[0]) : '';
+        const actualFilename = parts.length > 1 ? parts.slice(1).join('/') : filename;
+        const ext = actualFilename.split('.').pop().toLowerCase();
+
+        if (!imageExtensions.has(ext)) continue;
+
+        const existingImage = existingImagesByName.get(actualFilename) || null;
+        entries.push({
+            filename,
+            actualFilename,
+            category,
+            ext,
+            zipEntry,
+            existingImage,
+            hasTags: tagsMap.has(actualFilename)
+        });
+    }
+
+    const categorySummary = Array.from(entries.reduce((map, entry) => {
+        const key = entry.category;
+        if (!map.has(key)) {
+            map.set(key, {
+                key,
+                label: getImportCategoryLabel(key),
+                total: 0,
+                conflicts: 0
+            });
+        }
+
+        const summary = map.get(key);
+        summary.total += 1;
+        if (entry.existingImage) summary.conflicts += 1;
+        return map;
+    }, new Map()).values()).sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
+
+    return {
+        file,
+        zipContent,
+        entries,
+        categorySummary,
+        tagsMap,
+        totalImages: entries.length,
+        conflictCount: entries.filter(entry => entry.existingImage).length,
+        newCount: entries.filter(entry => !entry.existingImage).length,
+        tagRecordCount: tagsMap.size
+    };
+}
+
+function getSelectedImportCategories() {
+    return new Set(
+        Array.from(document.querySelectorAll('.import-category-checkbox:checked'))
+            .map(input => input.value)
+    );
+}
+
+function updateImportDialogLayout() {
+    const pickerSection = document.getElementById('import-file-picker-section');
+    const introText = document.getElementById('import-dialog-intro');
+    const preview = document.getElementById('import-preview');
+
+    if (!pickerSection || !preview) return;
+
+    const hasPreview = Boolean(importPreviewState);
+    pickerSection.style.display = hasPreview ? 'none' : 'block';
+
+    if (introText) {
+        introText.style.display = hasPreview ? 'none' : 'block';
+    }
+}
+
+function syncImportOptionButtons() {
+    const imagesCheckbox = document.getElementById('import-images-checkbox');
+    const tagsCheckbox = document.getElementById('import-tags-checkbox');
+    const importImagesButton = document.getElementById('import-images-button');
+    const importTagsButton = document.getElementById('import-tags-button');
+    const conflictToggleButton = document.getElementById('import-conflict-toggle-button');
+    const conflictToggleLabel = document.getElementById('import-conflict-toggle-label');
+    const conflictToggleDesc = document.getElementById('import-conflict-toggle-desc');
+    const selectedConflict = document.querySelector('input[name="import-conflict-strategy"]:checked')?.value || 'skip';
+
+    if (importImagesButton && imagesCheckbox) {
+        importImagesButton.classList.toggle('active', imagesCheckbox.checked);
+        importImagesButton.setAttribute('aria-pressed', imagesCheckbox.checked ? 'true' : 'false');
+    }
+
+    if (importTagsButton && tagsCheckbox) {
+        importTagsButton.classList.toggle('active', tagsCheckbox.checked);
+        importTagsButton.classList.toggle('disabled', tagsCheckbox.disabled);
+        importTagsButton.setAttribute('aria-pressed', tagsCheckbox.checked ? 'true' : 'false');
+    }
+
+    if (conflictToggleButton && conflictToggleLabel && conflictToggleDesc) {
+        const isSkip = selectedConflict === 'skip';
+        conflictToggleButton.classList.toggle('overwrite-mode', !isSkip);
+        conflictToggleButton.setAttribute('aria-pressed', 'true');
+        conflictToggleLabel.textContent = isSkip ? '跳过同名图片' : '覆盖同名图片';
+        conflictToggleDesc.textContent = '';
+    }
+}
+
+function toggleImportOption(optionName) {
+    const checkbox = document.getElementById(`import-${optionName}-checkbox`);
+    if (!checkbox || checkbox.disabled) return;
+    checkbox.checked = !checkbox.checked;
+    syncImportOptionButtons();
+}
+
+function setImportConflictStrategy(strategy) {
+    const radio = document.querySelector(`input[name="import-conflict-strategy"][value="${strategy}"]`);
+    if (!radio) return;
+    radio.checked = true;
+    syncImportOptionButtons();
+}
+
+function toggleImportConflictStrategy() {
+    const selectedConflict = document.querySelector('input[name="import-conflict-strategy"]:checked')?.value || 'skip';
+    setImportConflictStrategy(selectedConflict === 'skip' ? 'overwrite' : 'skip');
+}
+
+function renderImportPreview() {
+    const preview = document.getElementById('import-preview');
+    const confirmButton = document.getElementById('import-confirm-button');
+    const tagsCheckbox = document.getElementById('import-tags-checkbox');
+    const fileNameElement = document.getElementById('import-file-name');
+
+    if (!preview || !confirmButton) return;
+
+    if (!importPreviewState) {
+        preview.innerHTML = '';
+        preview.style.display = 'none';
+        confirmButton.disabled = true;
+        if (fileNameElement) {
+            fileNameElement.textContent = '尚未选择文件';
+        }
+        updateImportDialogLayout();
+        return;
+    }
+
+    preview.style.display = 'block';
+    confirmButton.disabled = false;
+
+    if (tagsCheckbox) {
+        tagsCheckbox.disabled = importPreviewState.tagRecordCount === 0;
+        if (importPreviewState.tagRecordCount === 0) {
+            tagsCheckbox.checked = false;
+        }
+    }
+
+    if (fileNameElement) {
+        fileNameElement.textContent = `已选择：${importPreviewState.file.name}`;
+    }
+
+    const categoryOptions = importPreviewState.categorySummary.map(category => `
+        <label class="import-category-item">
+            <input type="checkbox" class="import-category-checkbox" value="${escapeHtml(category.key)}" checked>
+            <span>${escapeHtml(category.label)} <span class="import-category-meta">(${category.total}${category.conflicts ? `，冲突 ${category.conflicts}` : ''})</span></span>
+        </label>
+    `).join('');
+
+    preview.innerHTML = `
+        <div class="import-preview-header">
+            <div class="import-preview-title-group">
+                <div class="import-preview-eyebrow">导入分析结果</div>
+                <div class="import-preview-file">${escapeHtml(importPreviewState.file.name)}</div>
+            </div>
+            <button type="button" class="import-link-btn import-reselect-btn" onclick="reselectImportFile()">重新选择文件</button>
+        </div>
+        <div class="import-summary-grid">
+            <div class="import-summary-card">
+                <strong>${importPreviewState.totalImages}</strong>
+                <span>压缩包图片</span>
+            </div>
+            <div class="import-summary-card">
+                <strong>${importPreviewState.newCount}</strong>
+                <span>可直接新增</span>
+            </div>
+            <div class="import-summary-card">
+                <strong>${importPreviewState.conflictCount}</strong>
+                <span>同名冲突</span>
+            </div>
+            <div class="import-summary-card">
+                <strong>${importPreviewState.tagRecordCount}</strong>
+                <span>标签记录</span>
+            </div>
+        </div>
+        <div class="import-selection-block">
+            <div class="import-selection-title">导入分类选择</div>
+            <div class="import-category-actions">
+                <button type="button" class="import-link-btn" onclick="toggleImportCategories(true)">全选</button>
+                <button type="button" class="import-link-btn" onclick="toggleImportCategories(false)">清空</button>
+            </div>
+            <div class="import-category-list">
+                ${categoryOptions || '<div class="import-empty-hint">压缩包中没有可导入图片</div>'}
+            </div>
+        </div>
+    `;
+
+    syncImportOptionButtons();
+    updateImportDialogLayout();
+}
+
+function toggleImportCategories(checked) {
+    document.querySelectorAll('.import-category-checkbox').forEach(input => {
+        input.checked = checked;
+    });
+}
+
+async function prepareImportFile(file) {
+    if (!file || !file.name.endsWith('.zip')) {
+        showToast('请选择ZIP格式的文件', 'error');
+        return;
+    }
+
+    try {
+        importPreviewState = await readZipImportPreview(file);
+        renderImportPreview();
+    } catch (error) {
+        console.error('导入预扫描失败:', error);
+        importPreviewState = null;
+        renderImportPreview();
+        showToast('解析导入文件失败，请确认 ZIP 内容是否正确', 'error');
+    }
+}
+
+function reselectImportFile() {
+    const input = document.getElementById('import-file-input');
+    if (input) {
+        input.value = '';
+        input.click();
+    }
+}
+
 function showImportDialog() {
-    // 创建对话框HTML
     const dialog = document.createElement('div');
     dialog.className = 'import-dialog';
     dialog.innerHTML = `
@@ -1258,22 +1516,32 @@ function showImportDialog() {
                 <button class="import-close" onclick="closeImportDialog()">&times;</button>
             </div>
             <div class="import-body">
-                <p>请选择要导入的ZIP文件：</p>
-                <div class="file-upload-area" onclick="document.getElementById('import-file-input').click()">
-                    <div class="file-upload-icon">📁</div>
-                    <p class="file-upload-text">点击选择ZIP文件或拖拽文件到此处</p>
-                    <input type="file" id="import-file-input" accept=".zip" style="display: none;" onchange="handleFileImport(event)">
+                <p id="import-dialog-intro">先选择 ZIP 文件，系统会预扫描内容，再由你决定导入哪些数据。</p>
+                <div id="import-file-picker-section">
+                    <div class="file-upload-area" onclick="document.getElementById('import-file-input').click()">
+                        <div class="file-upload-icon">📁</div>
+                        <p class="file-upload-text">点击选择 ZIP 文件或拖拽文件到此处</p>
+                        <div id="import-file-name" class="import-file-name">尚未选择文件</div>
+                        <input type="file" id="import-file-input" accept=".zip" style="display: none;" onchange="handleFileImport(event)">
+                    </div>
                 </div>
-                <div class="import-options">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="import-overwrite-checkbox"> 覆盖同名图片
-                    </label>
+                <div id="import-preview" class="import-preview" style="display: none;"></div>
+                <input type="checkbox" id="import-images-checkbox" checked style="display: none;">
+                <input type="checkbox" id="import-tags-checkbox" checked style="display: none;">
+                <input type="radio" name="import-conflict-strategy" value="skip" checked style="display: none;">
+                <input type="radio" name="import-conflict-strategy" value="overwrite" style="display: none;">
+                <div class="import-actions">
+                    <button type="button" class="import-btn import-btn-secondary" onclick="closeImportDialog()">取消</button>
+                    <button type="button" id="import-conflict-toggle-button" class="import-btn import-btn-mode" onclick="toggleImportConflictStrategy()" aria-pressed="true">
+                        <span id="import-conflict-toggle-label">跳过同名图片</span>
+                        <span id="import-conflict-toggle-desc"></span>
+                    </button>
+                    <button type="button" id="import-confirm-button" class="import-btn import-btn-primary" onclick="confirmImportData()" disabled>开始导入</button>
                 </div>
             </div>
         </div>
     `;
 
-    // 添加样式
     const style = document.createElement('style');
     style.id = 'import-dialog-style';
     style.textContent = `
@@ -1290,18 +1558,18 @@ function showImportDialog() {
             z-index: 3000;
             backdrop-filter: blur(5px);
         }
-        
+
         .import-content {
             background: white;
             border-radius: 16px;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
+            width: 92%;
+            max-width: 720px;
+            max-height: 88vh;
             overflow: hidden;
             animation: modalSlideIn 0.3s ease-out;
         }
-        
+
         @keyframes modalSlideIn {
             from {
                 opacity: 0;
@@ -1312,7 +1580,7 @@ function showImportDialog() {
                 transform: scale(1) translateY(0);
             }
         }
-        
+
         .import-header {
             display: flex;
             justify-content: space-between;
@@ -1320,14 +1588,14 @@ function showImportDialog() {
             padding: 24px 24px 0 24px;
             border-bottom: 1px solid #e2e8f0;
         }
-        
+
         .import-header h3 {
             margin: 0;
             color: #1e293b;
             font-size: 20px;
             font-weight: 600;
         }
-        
+
         .import-close {
             background: none;
             border: none;
@@ -1343,70 +1611,340 @@ function showImportDialog() {
             border-radius: 50%;
             transition: all 0.2s;
         }
-        
+
         .import-close:hover {
             background: #f1f5f9;
             color: #475569;
         }
-        
+
         .import-body {
             padding: 24px;
+            max-height: calc(88vh - 80px);
+            overflow: auto;
         }
-        
+
         .import-body p {
             margin: 0 0 20px 0;
             color: #64748b;
-            font-size: 16px;
+            font-size: 15px;
+            line-height: 1.6;
         }
-        
+
         .file-upload-area {
             border: 2px dashed #cbd5e1;
             border-radius: 12px;
-            padding: 40px 20px;
+            padding: 32px 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
             margin-bottom: 20px;
         }
-        
+
         .file-upload-area:hover {
             border-color: #94a3b8;
             background: #f8fafc;
         }
-        
+
         .file-upload-icon {
             font-size: 48px;
             margin-bottom: 16px;
         }
-        
+
         .file-upload-text {
             margin: 0;
-            color: #64748b;
+            color: #475569;
             font-size: 16px;
+            font-weight: 600;
         }
-        
+
+        .import-file-name {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #64748b;
+        }
+
         .import-options {
             margin-top: 20px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
         }
-        
+
+        .import-selection-title {
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
         .checkbox-label {
             display: flex;
             align-items: center;
+            gap: 8px;
             font-size: 14px;
             color: #475569;
+            margin-bottom: 10px;
         }
-        
+
+        .checkbox-label:last-child {
+            margin-bottom: 0;
+        }
+
         .checkbox-label input {
-            margin-right: 8px;
-            transform: scale(1.2);
+            transform: scale(1.1);
+        }
+
+        .import-toggle-group {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .import-toggle-button {
+            border: 1px solid #cbd5e1;
+            background: white;
+            border-radius: 12px;
+            padding: 14px 16px;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+
+        .import-toggle-button:hover {
+            border-color: #818cf8;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.10);
+        }
+
+        .import-toggle-button.active {
+            border-color: #4f46e5;
+            background: linear-gradient(180deg, #eef2ff 0%, #ffffff 100%);
+            box-shadow: 0 10px 24px rgba(79, 70, 229, 0.12);
+        }
+
+        .import-toggle-button.disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .import-toggle-button.disabled:hover {
+            transform: none;
+            border-color: #cbd5e1;
+        }
+
+        .import-toggle-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .import-toggle-desc {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #64748b;
+        }
+
+        .import-preview {
+            padding: 18px;
+            border: 1px solid #dbeafe;
+            background: #f8fbff;
+            border-radius: 12px;
+        }
+
+        .import-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .import-preview-eyebrow {
+            font-size: 12px;
+            font-weight: 700;
+            color: #2563eb;
+            letter-spacing: 0.04em;
+        }
+
+        .import-preview-file {
+            margin-top: 6px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+            word-break: break-all;
+        }
+
+        .import-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .import-summary-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .import-summary-card strong {
+            font-size: 20px;
+            color: #1d4ed8;
+        }
+
+        .import-summary-card span {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .import-selection-block {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .import-category-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .import-link-btn {
+            background: none;
+            border: none;
+            color: #2563eb;
+            cursor: pointer;
+            font-size: 13px;
+            padding: 0;
+        }
+
+        .import-reselect-btn {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .import-category-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .import-category-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #334155;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+
+        .import-category-meta {
+            color: #64748b;
+        }
+
+        .import-empty-hint {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .import-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .import-btn {
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .import-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .import-btn-secondary {
+            background: white;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+        }
+
+        .import-btn-mode {
+            width: auto;
+            border: 1px solid #c7d2fe;
+            background: linear-gradient(180deg, #eef2ff 0%, #ffffff 100%);
+            color: #312e81;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+            flex: 0 0 auto;
+        }
+
+        .import-btn-mode.overwrite-mode {
+            border-color: #fbcfe8;
+            background: linear-gradient(180deg, #fff1f2 0%, #ffffff 100%);
+            color: #9f1239;
+        }
+
+        .import-btn-mode span:first-child {
+            font-weight: 700;
+        }
+
+        .import-btn-mode span:last-child {
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.4;
+            color: #64748b;
+        }
+
+        .import-btn-primary {
+            border: none;
+            background: #4f46e5;
+            color: white;
+        }
+
+        @media (max-width: 640px) {
+            .import-preview-header,
+            .import-toggle-group,
+            .import-summary-grid,
+            .import-category-list {
+                grid-template-columns: 1fr;
+            }
+
+            .import-preview-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
     `;
 
+    importPreviewState = null;
     document.head.appendChild(style);
     document.body.appendChild(dialog);
 
-    // 添加拖拽上传功能
     const uploadArea = dialog.querySelector('.file-upload-area');
+    syncImportOptionButtons();
+    updateImportDialogLayout();
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         uploadArea.style.borderColor = '#3b82f6';
@@ -1426,7 +1964,7 @@ function showImportDialog() {
 
         const files = e.dataTransfer.files;
         if (files.length > 0 && files[0].name.endsWith('.zip')) {
-            handleZipFile(files[0]);
+            prepareImportFile(files[0]);
         } else {
             showToast('请选择ZIP格式的文件', 'error');
         }
@@ -1440,134 +1978,127 @@ function closeImportDialog() {
 
     if (dialog) dialog.remove();
     if (style) style.remove();
+    importPreviewState = null;
 }
 
 // 处理文件导入事件
 function handleFileImport(event) {
     const file = event.target.files[0];
     if (file && file.name.endsWith('.zip')) {
-        handleZipFile(file);
+        prepareImportFile(file);
     } else {
         showToast('请选择ZIP格式的文件', 'error');
     }
 }
 
-// 处理ZIP文件导入
-async function handleZipFile(file) {
-    showToast(`开始导入 ${file.name}...`, 'info');
+function upsertImportedImageRecord(imageRecord) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = imageRecord.id ? store.put(imageRecord) : store.add(imageRecord);
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function confirmImportData() {
+    if (!importPreviewState) {
+        showToast('请先选择并分析 ZIP 文件', 'warning');
+        return;
+    }
+
+    const importImages = document.getElementById('import-images-checkbox')?.checked;
+    const importTags = document.getElementById('import-tags-checkbox')?.checked;
+    const conflictStrategy = document.querySelector('input[name="import-conflict-strategy"]:checked')?.value || 'skip';
+    const selectedCategories = getSelectedImportCategories();
+
+    if (!importImages && !importTags) {
+        showToast('请至少选择一种导入内容', 'warning');
+        return;
+    }
+
+    if (selectedCategories.size === 0) {
+        showToast('请至少选择一个分类', 'warning');
+        return;
+    }
+
+    const selectedEntries = importPreviewState.entries.filter(entry => selectedCategories.has(entry.category));
+    if (selectedEntries.length === 0) {
+        showToast('当前选择下没有可导入的图片', 'warning');
+        return;
+    }
 
     try {
-        // 读取ZIP文件
-        const zipContent = await JSZip.loadAsync(file);
-
-        // 统计信息
-        let totalFiles = 0;
         let importedFiles = 0;
         let skippedFiles = 0;
+        let updatedTagRecords = 0;
 
-        // 首先检查是否存在标签信息文件
-        let tagsInfo = null;
-        if (zipContent.files['tags.json']) {
-            const tagsJson = await zipContent.files['tags.json'].async('text');
-            tagsInfo = JSON.parse(tagsJson);
-        }
-
-        // 遍历ZIP中的所有文件
-        for (const [filename, zipEntry] of Object.entries(zipContent.files)) {
-            // 忽略文件夹和标签信息文件
-            if (zipEntry.dir || filename === 'tags.json') continue;
-
-            totalFiles++;
-
-            // 提取分类名称（路径的第一部分）
-            const parts = filename.split('/');
-            let category = '';
-            let actualFilename = filename;
-
-            if (parts.length > 1) {
-                category = parts[0];  // 第一部分作为分类
-                actualFilename = parts.slice(1).join('/');  // 剩余部分作为文件名
+        for (const entry of selectedEntries) {
+            if (entry.existingImage && conflictStrategy === 'skip' && importImages) {
+                skippedFiles++;
+                if (importTags && importPreviewState.tagsMap.has(entry.actualFilename)) {
+                    const updatedRecord = {
+                        ...entry.existingImage,
+                        tags: importPreviewState.tagsMap.get(entry.actualFilename)
+                    };
+                    await upsertImportedImageRecord(updatedRecord);
+                    updatedTagRecords++;
+                }
+                continue;
             }
 
-            // 检查是否为图片文件
-            const ext = actualFilename.split('.').pop().toLowerCase();
-            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
-                // 检查是否已存在同名文件
-                const existingImage = allImages.find(img => img.name === actualFilename);
-
-                if (existingImage && !document.getElementById('import-overwrite-checkbox').checked) {
+            if (!importImages) {
+                if (importTags && entry.existingImage && importPreviewState.tagsMap.has(entry.actualFilename)) {
+                    const updatedRecord = {
+                        ...entry.existingImage,
+                        tags: importPreviewState.tagsMap.get(entry.actualFilename)
+                    };
+                    await upsertImportedImageRecord(updatedRecord);
+                    updatedTagRecords++;
+                } else {
                     skippedFiles++;
-                    continue; // 跳过已存在的文件
                 }
-
-                // 读取文件内容
-                const imageData = await zipEntry.async('base64');
-                const base64Data = `data:image/${ext};base64,${imageData}`;
-
-                // 创建一个Blob对象来模拟文件
-                const byteCharacters = atob(imageData);
-                const byteArrays = [];
-
-                for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-                    const slice = byteCharacters.slice(offset, offset + 512);
-
-                    const byteNumbers = new Array(slice.length);
-                    for (let i = 0; i < slice.length; i++) {
-                        byteNumbers[i] = slice.charCodeAt(i);
-                    }
-
-                    const byteArray = new Uint8Array(byteNumbers);
-                    byteArrays.push(byteArray);
-                }
-
-                const blob = new Blob(byteArrays, { type: `image/${ext}` });
-                blob.name = actualFilename; // 添加名称属性
-
-                // 使用现有的saveImage函数保存图片到指定分类
-                await saveImage(blob, category || 'all'); // 使用'all'表示默认分类
-
-                // 如果存在标签信息，为新保存的图片添加标签
-                if (tagsInfo) {
-                    const tagInfo = tagsInfo.find(info => info.name === actualFilename);
-                    if (tagInfo && tagInfo.tags && tagInfo.tags.length > 0) {
-                        // 将标签信息存储在临时数组中，稍后统一处理
-                        if (!window.pendingTagUpdates) {
-                            window.pendingTagUpdates = [];
-                        }
-                        window.pendingTagUpdates.push({ name: actualFilename, tags: tagInfo.tags });
-                    }
-                }
-
-                importedFiles++;
+                continue;
             }
+
+            const imageData = await entry.zipEntry.async('base64');
+            const record = entry.existingImage
+                ? { ...entry.existingImage }
+                : {
+                    name: entry.actualFilename,
+                    category: entry.category,
+                    tags: [],
+                    date: new Date().toLocaleString()
+                };
+
+            record.name = entry.actualFilename;
+            record.category = normalizeImportCategory(entry.category);
+            record.data = `data:image/${entry.ext};base64,${imageData}`;
+            record.date = new Date().toLocaleString();
+
+            if (importTags && importPreviewState.tagsMap.has(entry.actualFilename)) {
+                record.tags = importPreviewState.tagsMap.get(entry.actualFilename);
+                updatedTagRecords++;
+            } else if (!Array.isArray(record.tags)) {
+                record.tags = [];
+            }
+
+            await upsertImportedImageRecord(record);
+            importedFiles++;
         }
 
-        // 重新加载图片列表以反映新导入的图片
         await loadImages();
         renderGallery();
         renderCategories();
 
-        // 处理待更新的标签
-        if (window.pendingTagUpdates && window.pendingTagUpdates.length > 0) {
-            for (const update of window.pendingTagUpdates) {
-                await updateImageTagsByName(update.name, update.tags);
-            }
-            // 清空待更新列表
-            window.pendingTagUpdates = [];
-
-            // 再次重新加载以确保标签更新生效
-            await loadImages();
-            renderGallery();
-            renderCategories();
-        }
-
-        showToast(`导入完成：成功导入 ${importedFiles} 个文件，跳过 ${skippedFiles} 个文件`, 'success');
+        const skippedMessage = skippedFiles > 0 ? `，跳过 ${skippedFiles} 项` : '';
+        const tagsMessage = updatedTagRecords > 0 ? `，同步标签 ${updatedTagRecords} 项` : '';
+        showToast(`导入完成：成功导入 ${importedFiles} 张${skippedMessage}${tagsMessage}`, 'success');
         closeImportDialog();
-
     } catch (error) {
         console.error('导入失败:', error);
         showToast('导入失败，请重试', 'error');
-        closeImportDialog();
     }
 }
 

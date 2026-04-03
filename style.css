@@ -1325,16 +1325,15 @@ header h2 {
     align-self: start;
     display: flex;
     flex-direction: column;
-    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s;
+    transition: box-shadow 0.25s ease, border-color 0.2s;
     content-visibility: auto;
     contain: layout style paint;
     contain-intrinsic-size: 220px;
 }
 
 .img-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--card-hover-shadow);
-    border-color: rgba(79, 70, 229, 0.2);
+    box-shadow: var(--card-shadow);
+    border-color: var(--border);
 }
 
 .img-card.selected {
@@ -1369,15 +1368,11 @@ header h2 {
     object-fit: cover;
     display: block;
     opacity: 0.55;
-    transition: transform 0.35s ease, opacity 0.2s ease;
+    transition: opacity 0.2s ease;
 }
 
 .img-card-thumb img.is-loaded {
     opacity: 1;
-}
-
-.img-card:hover .img-card-thumb img {
-    transform: scale(1.04);
 }
 
 /* 角标 DSC / TGA */

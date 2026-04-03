@@ -129,9 +129,9 @@
                     <input type="text" id="search-input" placeholder="名称、标签、分类" oninput="performSearch()">
                 </div>
                 <!-- 菜单栏 -->
-                <button class="btn btn-secondary" onclick="toggleSelectAll()" id="toggle-select-btn">✓ 全选</button>
                 <button class="btn btn-danger" onclick="deleteSelected()" id="delete-selected-btn"
                     style="display: none;">🗑️ 删除选中</button>
+                <button class="btn btn-secondary" onclick="toggleSelectAll()" id="toggle-select-btn">✓ 全选</button>
                 <button class="btn btn-primary" onclick="toggleModeFilter()" id="mode-toggle-btn">📊 ALL</button>
                 <button class="btn btn-ai" onclick="openAIAnalysis()">🤖 AI分析</button>
                 <div class="dropdown">
@@ -153,13 +153,12 @@
 
             <!-- 响应式菜单面板 -->
             <div class="responsive-menu-panel" id="responsive-menu-panel">
-                <button class="btn btn-secondary" onclick="toggleSelectAll()" id="mobile-toggle-select-btn">✓
-                    全选</button>
+                <button class="btn btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
+                <button class="btn btn-secondary" onclick="toggleSelectAll()" id="mobile-toggle-select-btn">✓ 全选</button>
                 <button class="btn btn-primary" onclick="toggleModeFilter()" id="mobile-mode-toggle-btn">📊 ALL</button>
                 <button class="btn btn-ai" onclick="openAIAnalysis()">🤖 AI分析</button>
                 <button class="btn btn-print" onclick="printSelected()">🖨️ 打印选中</button>
                 <button class="btn btn-export" onclick="exportSelected()">📤 导出选中</button>
-                <button class="btn btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
                 <button class="btn btn-import" onclick="showImportDialog()">📥 导入数据</button>
             </div>
         </header>

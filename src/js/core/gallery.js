@@ -44,8 +44,8 @@ function createImageCardMarkup(img) {
     const suffix = hasSuffix(img.name, 'DSC') ? 'DSC' : hasSuffix(img.name, 'TGA') ? 'TGA' : '';
 
     return `
-        <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})" ondblclick="openDetail(${img.id}, event)">
-            <div class="img-card-thumb">
+        <div class="img-card ${selectedIds.has(img.id) ? 'selected' : ''}" data-id="${img.id}" onclick="toggleSelect(${img.id})">
+            <div class="img-card-thumb" ondblclick="openDetail(${img.id}, event)">
                 <img
                     src="${GALLERY_IMAGE_PLACEHOLDER}"
                     data-image-src="${img.data}"
