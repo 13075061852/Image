@@ -77,9 +77,43 @@ let galleryRenderToken = 0;
 let galleryRenderFrame = null;
 let searchDebounceTimer = null;
 let galleryImageObserver = null;
+let headerLayoutFrame = null;
 
 const GALLERY_BATCH_SIZE = 24;
 const GALLERY_IMAGE_PLACEHOLDER = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="320" height="220" viewBox="0 0 320 220"%3E%3Crect width="320" height="220" fill="%23f1f5f9"/%3E%3Cpath d="M90 150l38-42 30 32 22-22 50 54H90z" fill="%23cbd5e1"/%3E%3Ccircle cx="120" cy="82" r="16" fill="%23dbe4ee"/%3E%3C/svg%3E';
+
+function updateHeaderResponsiveLayout() {
+    const header = document.querySelector('#main > header');
+    const title = document.getElementById('current-category');
+    const toolbar = header ? header.querySelector('.toolbar') : null;
+
+    if (!header || !title || !toolbar) return;
+
+    if (window.innerWidth <= 768) {
+        header.classList.remove('header-compact');
+        return;
+    }
+
+    header.classList.remove('header-compact');
+
+    const headerStyles = window.getComputedStyle(header);
+    const gap = parseFloat(headerStyles.columnGap || headerStyles.gap || '0') || 0;
+    const neededWidth = title.offsetWidth + gap + toolbar.scrollWidth;
+    const availableWidth = header.clientWidth;
+
+    header.classList.toggle('header-compact', neededWidth > availableWidth);
+}
+
+function scheduleHeaderResponsiveLayoutUpdate() {
+    if (headerLayoutFrame) {
+        cancelAnimationFrame(headerLayoutFrame);
+    }
+
+    headerLayoutFrame = requestAnimationFrame(() => {
+        updateHeaderResponsiveLayout();
+        headerLayoutFrame = null;
+    });
+}
 
 /**
  * =========================
@@ -836,6 +870,7 @@ window.addEventListener('resize', function () {
 
     // 重新渲染分类以适应窗口大小变化
     renderCategories();
+    scheduleHeaderResponsiveLayoutUpdate();
 });
 
 // 切换全选/取消全选
@@ -2239,6 +2274,7 @@ function filterCategory(cat) {
         displayCat = '全部图片';
     }
     document.getElementById('current-category').innerText = displayCat;
+    scheduleHeaderResponsiveLayoutUpdate();
 
     // 更新"全部图片"按钮的选中状态
     const allBtn = document.getElementById('all-category-btn');
@@ -2965,12 +3001,14 @@ window.addEventListener('resize', updateResponsiveMenuForMobile);
 
 // 页面加载完成后更新响应式菜单
 document.addEventListener('DOMContentLoaded', updateResponsiveMenuForMobile);
+document.addEventListener('DOMContentLoaded', scheduleHeaderResponsiveLayoutUpdate);
 
 // 页面加载完成后初始化
 window.onload = function () {
     initDB().then(() => {
         loadImages();
         initAIAnalysis();
+        scheduleHeaderResponsiveLayoutUpdate();
 
         // 设置对话框事件监听器
         setupDialogEvents();

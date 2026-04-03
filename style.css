@@ -355,6 +355,8 @@ header {
     overflow: visible;
     flex-shrink: 0;
     z-index: 100;
+    gap: 16px;
+    flex-wrap: wrap;
 }
 
 header::before {
@@ -448,6 +450,8 @@ header h2 {
     font-weight: 600;
     color: var(--text);
     position: relative;
+    white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 /* 搜索框容器 */
@@ -499,16 +503,31 @@ header h2 {
     align-items: center;
     position: relative;
     flex-wrap: wrap;
+    flex: 0 1 auto;
+    justify-content: flex-end;
+    min-width: 0;
+    max-width: 100%;
 }
 
 /* 工具栏在较小屏幕上的优化 */
 @media (max-width: 1024px) {
+    header {
+        align-items: flex-start;
+    }
+
+    header h2 {
+        flex-basis: 100%;
+    }
+
     .toolbar {
         gap: 6px;
+        width: 100%;
+        justify-content: flex-start;
     }
 
     .search-container {
-        min-width: 150px;
+        min-width: 220px;
+        flex: 1 1 240px;
     }
 
     .btn {
@@ -519,12 +538,35 @@ header h2 {
 }
 
 @media (max-width: 768px) {
+    header {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        column-gap: 12px;
+        row-gap: 0;
+    }
+
+    header h2 {
+        font-size: 20px;
+        grid-column: 1;
+        grid-row: 1;
+        flex-basis: auto;
+    }
+
     .toolbar {
         gap: 4px;
+        width: auto;
+        grid-column: 2;
+        grid-row: 1;
+        flex: 1 1 auto;
+        justify-content: flex-end;
+        flex-wrap: nowrap;
+        min-width: 0;
     }
 
     .search-container {
-        width: 120px;
+        width: auto;
+        min-width: 0;
     }
 
     .btn {
@@ -732,12 +774,12 @@ header h2 {
 
     /* 搜索框在小屏幕模式下保持可见，与菜单按钮同行显示 */
     .search-container {
-        display: inline-block !important;
+        display: block !important;
         margin-bottom: 0;
-        margin-right: 8px;
-        width: calc(100% - 60px);
-        /* 减去菜单按钮的宽度 */
-        vertical-align: top;
+        margin-right: 0;
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
     }
 
     .search-container input {
@@ -749,6 +791,8 @@ header h2 {
         display: flex;
         align-items: center;
         flex-wrap: nowrap;
+        width: auto;
+        min-width: 0;
     }
 
     /* 菜单按钮与搜索框同行 */
@@ -756,6 +800,7 @@ header h2 {
         display: inline-flex !important;
         margin-left: 8px;
         vertical-align: top;
+        flex: 0 0 auto;
     }
 }
 
@@ -775,6 +820,46 @@ header h2 {
         min-height: 40px;
         /* 在中等屏幕上稍微调整高度 */
         padding: 8px 12px;
+    }
+}
+
+@media (min-width: 769px) {
+    header.header-compact {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: start;
+        column-gap: 16px;
+        row-gap: 8px;
+    }
+
+    header.header-compact h2 {
+        grid-column: 1;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    header.header-compact .toolbar {
+        grid-column: 2;
+        grid-row: 1;
+        justify-content: flex-start;
+        display: grid;
+        grid-template-columns: repeat(4, max-content);
+        grid-auto-rows: minmax(42px, auto);
+        column-gap: 8px;
+        row-gap: 8px;
+        width: 100%;
+        align-items: center;
+    }
+
+    header.header-compact .search-container {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-width: 0;
+    }
+
+    header.header-compact .toolbar > .btn,
+    header.header-compact .toolbar > .dropdown {
+        grid-row: 2;
     }
 }
 
@@ -1300,6 +1385,29 @@ header h2 {
     min-height: 0;
     min-width: 0;
     flex-basis: auto;
+    -ms-overflow-style: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.9) rgba(226, 232, 240, 0.65);
+}
+
+#gallery::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+#gallery::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.65);
+    border-radius: 999px;
+}
+
+#gallery::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.9);
+    border-radius: 999px;
+    border: 2px solid rgba(226, 232, 240, 0.65);
+}
+
+#gallery::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.95);
 }
 
 #gallery::before {
@@ -1326,9 +1434,6 @@ header h2 {
     display: flex;
     flex-direction: column;
     transition: box-shadow 0.25s ease, border-color 0.2s;
-    content-visibility: auto;
-    contain: layout style paint;
-    contain-intrinsic-size: 220px;
 }
 
 .img-card:hover {
