@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -389,18 +389,20 @@
                                     <h4
                                         style="margin: 0; font-size: 16px; font-weight: 600; color: #1e293b; white-space: nowrap;">
                                         对话历史</h4>
-                                    <!-- 搜索框 -->
-                                    <div style="position: relative; flex: 1; min-width: 150px;">
-                                        <input type="text" id="ai-conversation-search" placeholder="搜索对话..."
-                                            style="width: 100%; padding: 8px 32px 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; transition: all 0.3s; background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                        <span
-                                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px;">🔍</span>
-                                    </div>
                                 </div>
                                 <button onclick="createNewConversationFromUI()"
                                     style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap;">
                                     <span>+</span>
                                     <span>新对话</span>
+                                </button>
+                                <button id="ai-bulk-delete-apply" onclick="deleteSelectedConversations()"
+                                    style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; display: none; align-items: center; gap: 4px; white-space: nowrap;">
+                                    <span>删除所选</span>
+                                    <span id="ai-bulk-delete-count" style="background: rgba(255,255,255,0.2); padding: 0 6px; border-radius: 999px; font-size: 12px;">0</span>
+                                </button>
+                                <button id="ai-bulk-delete-select-all" onclick="toggleSelectAllVisibleConversations()"
+                                    style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; display: none; align-items: center; gap: 4px; white-space: nowrap;">
+                                    <span>全选</span>
                                 </button>
                             </div>
                         </div>

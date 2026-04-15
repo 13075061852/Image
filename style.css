@@ -219,6 +219,25 @@ body {
     font-weight: 600;
 }
 
+.conversation-item.active {
+    border-color: #6366f1 !important;
+    background: rgba(99, 102, 241, 0.05) !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
+}
+
+.conversation-item.bulk-selected {
+    border-color: #a5b4fc !important;
+    background: rgba(99, 102, 241, 0.08) !important;
+}
+
+.conversation-bulk-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: #4f46e5;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
 /* 主界面 */
 #main {
     flex: 1;

@@ -1,4 +1,4 @@
-// AI功能相关代码
+﻿// AI功能相关代码
 
 // 全局变量
 let currentConversation = null; // 当前对话
@@ -6,6 +6,8 @@ let currentSelectedImages = []; // 当前选中的图片
 let isKnowledgeBaseEnabled = true; // 知识库启用状态
 let isQualityAnswersEnabled = true; // 优质回答启用状态
 let modelStatusCache = {}; // 模型状态缓存 {modelId: {status, text, detail, timestamp}}
+let aiConversationBulkDeleteMode = false;
+let selectedConversationIds = new Set();
 
 // 初始化知识库状态
 function initKnowledgeBaseStatus() {
@@ -74,47 +76,109 @@ function updateQualityAnswersUI() {
 }
 
 // 对话历史相关函数
-function getConversationList() {
-
+function getStoredConversationList() {
     const conversations = localStorage.getItem('ai-conversations');
+    return conversations ? JSON.parse(conversations) : [];
+}
 
-    const parsed = conversations ? JSON.parse(conversations) : [];
+function getConversationList() {
+    return getStoredConversationList().map(hydrateConversation);
+}
 
-    return parsed;
+function getImageSelectionKey(images = []) {
+    return images
+        .map(img => img.id)
+        .filter(Boolean)
+        .sort()
+        .join('|');
+}
+
+function normalizeConversationImagesForStorage(images = []) {
+    return images.map(img => ({
+        id: img.id,
+        name: img.name,
+        category: img.category
+    }));
+}
+
+function hydrateConversationImages(images = []) {
+    return images.map(img => {
+        const source = allImages.find(item => item.id === img.id);
+        return {
+            id: img.id,
+            name: img.name || source?.name || '',
+            data: img.data || source?.data || '',
+            category: img.category || source?.category || ''
+        };
+    });
+}
+
+function normalizeConversationForStorage(conversation) {
+    return {
+        ...conversation,
+        images: normalizeConversationImagesForStorage(conversation.images || [])
+    };
+}
+
+function hydrateConversation(conversation) {
+    return {
+        ...conversation,
+        images: hydrateConversationImages(conversation.images || [])
+    };
+}
+
+function compactConversationStorage() {
+    const conversations = getStoredConversationList();
+    const compacted = conversations.map(normalizeConversationForStorage);
+    localStorage.setItem('ai-conversations', JSON.stringify(compacted));
+}
+
+function findConversationByExactImages(selectedImages) {
+    const targetKey = getImageSelectionKey(selectedImages);
+    if (!targetKey) return null;
+
+    return getConversationList().find(conversation => {
+        const conversationKey = getImageSelectionKey(conversation.images || []);
+        return conversationKey === targetKey;
+    }) || null;
 }
 
 // 保存对话历史
 function saveConversationHistory(conversation) {
-
-    const conversations = getConversationList();
-    const existingIndex = conversations.findIndex(c => c.id === conversation.id);
+    const normalizedConversation = normalizeConversationForStorage(conversation);
+    const conversations = getStoredConversationList();
+    const existingIndex = conversations.findIndex(c => c.id === normalizedConversation.id);
 
     if (existingIndex !== -1) {
-
-        conversations[existingIndex] = conversation;
+        conversations[existingIndex] = normalizedConversation;
     } else {
-
-        conversations.unshift(conversation);
+        conversations.unshift(normalizedConversation);
     }
 
-
-    localStorage.setItem('ai-conversations', JSON.stringify(conversations));
-
+    try {
+        localStorage.setItem('ai-conversations', JSON.stringify(conversations));
+    } catch (error) {
+        compactConversationStorage();
+        const retryConversations = getStoredConversationList();
+        const retryIndex = retryConversations.findIndex(c => c.id === normalizedConversation.id);
+        if (retryIndex !== -1) {
+            retryConversations[retryIndex] = normalizedConversation;
+        } else {
+            retryConversations.unshift(normalizedConversation);
+        }
+        localStorage.setItem('ai-conversations', JSON.stringify(retryConversations));
+    }
 }
 
 // 加载对话历史
 function loadConversationHistory(conversationId) {
-
     const conversations = getConversationList();
-
-    const conversation = conversations.find(c => c.id === conversationId);
-
-    return conversation;
+    return conversations.find(c => c.id === conversationId) || null;
 }
 
 // 删除对话历史
 function deleteConversationHistory(conversationId) {
-    const conversations = getConversationList();
+    const conversations = getStoredConversationList();
     const filteredConversations = conversations.filter(c => c.id !== conversationId);
     localStorage.setItem('ai-conversations', JSON.stringify(filteredConversations));
 }
@@ -126,12 +190,7 @@ function createNewConversation(images = []) {
         id: Date.now().toString(),
         title: '新对话',
         messages: [],
-        images: images.map(img => ({
-            id: img.id,
-            name: img.name,
-            data: img.data,
-            category: img.category
-        })),
+        images: normalizeConversationImagesForStorage(images),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
     };
@@ -2013,9 +2072,6 @@ function openAIAnalysis() {
     // 加载对话列表
     loadConversationList();
 
-    // 初始化搜索功能
-    initConversationSearch();
-
     // 初始化知识库状态
     initKnowledgeBaseStatus();
 
@@ -2032,6 +2088,7 @@ function openAIAnalysis() {
             // 选择第一个对话
             selectConversation(conversations[0].id);
         } else {
+            currentSelectedImages = [];
             // 没有历史对话，显示空状态
             const aiChatMessages = document.getElementById('ai-chat-messages');
             if (aiChatMessages) {
@@ -2065,6 +2122,14 @@ function openAIAnalysis() {
         // 选择图片进入，新建一个对话但不发送消息
         // 保存当前选中的图片到全局变量
         currentSelectedImages = selectedImages;
+
+        const existingConversation = findConversationByExactImages(selectedImages);
+        if (existingConversation) {
+            currentConversation = existingConversation;
+            loadConversationList();
+            selectConversation(existingConversation.id);
+            return;
+        }
 
         // 生成对话标题（由图片名称拼接而成）
         const imageNames = selectedImages.map(img => removeFileExtension(img.name));
@@ -2109,8 +2174,146 @@ function closeAIAnalysis() {
     }
 }
 
+// 更新批量删除UI
+function updateConversationBulkDeleteUI() {
+    const selectAllButton = document.getElementById('ai-bulk-delete-select-all');
+    const deleteButton = document.getElementById('ai-bulk-delete-apply');
+    const countBadge = document.getElementById('ai-bulk-delete-count');
+    const conversationItems = document.getElementById('ai-conversation-items');
+    const conversations = getConversationList();
+    const totalCount = conversations.length;
+    const selectedCount = selectedConversationIds.size;
+    const allSelected = totalCount > 0 && selectedCount === totalCount;
+
+    if (selectAllButton) {
+        selectAllButton.style.display = totalCount > 0 ? 'inline-flex' : 'none';
+        selectAllButton.innerHTML = aiConversationBulkDeleteMode && allSelected ? '取消全选' : '全选';
+        selectAllButton.disabled = totalCount === 0;
+        selectAllButton.style.opacity = totalCount === 0 ? '0.6' : '1';
+        selectAllButton.style.cursor = totalCount === 0 ? 'not-allowed' : 'pointer';
+    }
+
+    if (deleteButton) {
+        deleteButton.style.display = aiConversationBulkDeleteMode ? 'inline-flex' : 'none';
+        deleteButton.disabled = selectedCount === 0;
+        deleteButton.style.opacity = selectedCount === 0 ? '0.6' : '1';
+        deleteButton.style.cursor = selectedCount === 0 ? 'not-allowed' : 'pointer';
+    }
+
+    if (countBadge) {
+        countBadge.textContent = String(selectedCount);
+    }
+
+    if (conversationItems) {
+        conversationItems.querySelectorAll('.conversation-item').forEach(item => {
+            const isSelected = selectedConversationIds.has(item.dataset.id);
+            item.classList.toggle('bulk-selected', isSelected);
+        });
+    }
+}
+
+function toggleConversationBulkSelection(conversationId) {
+    if (!aiConversationBulkDeleteMode) return;
+
+    if (selectedConversationIds.has(conversationId)) {
+        selectedConversationIds.delete(conversationId);
+    } else {
+        selectedConversationIds.add(conversationId);
+    }
+
+    updateConversationBulkDeleteUI();
+    loadConversationList();
+}
+
+function toggleSelectAllVisibleConversations() {
+    const conversations = getConversationList();
+    if (conversations.length === 0) return;
+
+    const allSelected = aiConversationBulkDeleteMode && selectedConversationIds.size === conversations.length;
+    if (allSelected) {
+        selectedConversationIds.clear();
+        aiConversationBulkDeleteMode = false;
+    } else {
+        aiConversationBulkDeleteMode = true;
+        selectedConversationIds = new Set(conversations.map(conv => conv.id));
+    }
+
+    updateConversationBulkDeleteUI();
+    loadConversationList();
+}
+
+function deleteSelectedConversations() {
+    if (!aiConversationBulkDeleteMode) return;
+
+    const ids = Array.from(selectedConversationIds);
+    if (ids.length === 0) {
+        showToast('请先选择要删除的对话', 'warning');
+        return;
+    }
+
+    const confirmText = ids.length === 1
+        ? '确定要删除选中的 1 个对话吗？'
+        : `确定要删除选中的 ${ids.length} 个对话吗？`;
+
+    if (!confirm(confirmText)) return;
+
+    const conversationsBeforeDelete = getConversationList();
+    const currentConversationId = currentConversation ? currentConversation.id : null;
+    const currentIndex = currentConversationId
+        ? conversationsBeforeDelete.findIndex(conv => conv.id === currentConversationId)
+        : -1;
+
+    ids.forEach(id => deleteConversationHistory(id));
+
+    selectedConversationIds.clear();
+    aiConversationBulkDeleteMode = false;
+
+    const remainingConversations = getConversationList();
+    const nextConversation = currentConversationId && ids.includes(currentConversationId)
+        ? (remainingConversations[currentIndex] || remainingConversations[currentIndex - 1] || remainingConversations[0] || null)
+        : (currentConversationId ? loadConversationHistory(currentConversationId) : null);
+
+    if (nextConversation) {
+        currentConversation = nextConversation;
+        selectConversation(nextConversation.id);
+    } else {
+        currentConversation = null;
+        currentSelectedImages = [];
+        const aiChatMessages = document.getElementById('ai-chat-messages');
+        if (aiChatMessages) {
+            aiChatMessages.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px;">
+                    <div style="font-size: 64px; margin-bottom: 24px;">🤖</div>
+                    <h3 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 600; color: #1e293b;">欢迎使用AI智能分析</h3>
+                    <p style="margin: 0 0 32px 0; font-size: 16px; color: #64748b; max-width: 400px; line-height: 1.6;">
+                        请先选择要分析的图片，然后开始新的对话。
+                    </p>
+                </div>
+            `;
+        }
+
+        const aiImageCount = document.getElementById('ai-image-count');
+        if (aiImageCount) {
+            aiImageCount.textContent = '0张';
+        }
+
+        const imagesContainer = document.getElementById('ai-selected-images');
+        if (imagesContainer) {
+            imagesContainer.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #94a3b8; font-size: 14px;">
+                    暂无选中的图片
+                </div>
+            `;
+        }
+    }
+
+    updateConversationBulkDeleteUI();
+    loadConversationList();
+    showToast(`已删除 ${ids.length} 个对话`, 'success');
+}
+
 // 加载对话列表
-function loadConversationList(searchKeyword = '') {
+function loadConversationList() {
 
     const conversationItems = document.getElementById('ai-conversation-items');
     if (!conversationItems) {
@@ -2118,37 +2321,36 @@ function loadConversationList(searchKeyword = '') {
         return;
     }
 
-    let conversations = getConversationList();
-
-    // 应用搜索过滤
-    if (searchKeyword) {
-        const keyword = searchKeyword.toLowerCase();
-        conversations = conversations.filter(conv =>
-            conv.title.toLowerCase().includes(keyword) ||
-            (conv.messages && conv.messages.some(msg =>
-                msg.content.toLowerCase().includes(keyword)
-            ))
-        );
-    }
-
-
-
-
+    const conversations = getConversationList();
     if (conversations.length === 0) {
-
         conversationItems.innerHTML = `
             <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 14px;">
-                ${searchKeyword ? '未找到匹配的对话' : '暂无对话历史'}
+                暂无对话历史
             </div>
         `;
+        updateConversationBulkDeleteUI();
         return;
     }
 
-
     conversationItems.innerHTML = conversations.map(conv => {
         const imageCount = conv.images ? conv.images.length : 0;
+        const isActive = currentConversation && currentConversation.id === conv.id;
+        const isBulkSelected = selectedConversationIds.has(conv.id);
+        const itemOnClick = aiConversationBulkDeleteMode
+            ? `toggleConversationBulkSelection('${conv.id}')`
+            : `selectConversation('${conv.id}')`;
         return `
-        <div class="conversation-item" data-id="${conv.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 8px; cursor: pointer; transition: all 0.2s; border: 2px solid transparent;" onclick="selectConversation('${conv.id}')">
+        <div class="conversation-item ${isActive ? 'active' : ''} ${isBulkSelected ? 'bulk-selected' : ''}" data-id="${conv.id}" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px; background: white; border-radius: 8px; cursor: pointer; transition: all 0.2s; border: 2px solid transparent;" onclick="${itemOnClick}">
+            ${aiConversationBulkDeleteMode ? `
+                <label style="display: flex; align-items: center; justify-content: center; flex: 0 0 auto;" onclick="event.stopPropagation();">
+                    <input
+                        type="checkbox"
+                        class="conversation-bulk-checkbox"
+                        ${isBulkSelected ? 'checked' : ''}
+                        onclick="event.stopPropagation(); toggleConversationBulkSelection('${conv.id}')"
+                    />
+                </label>
+            ` : ''}
             <div style="flex: 1; min-width: 0;">
                 <div style="font-size: 14px; font-weight: 500; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${conv.title}</div>
                 <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #94a3b8; margin-top: 4px;">
@@ -2168,16 +2370,7 @@ function loadConversationList(searchKeyword = '') {
         `;
     }).join('');
 
-}
-
-// 初始化搜索功能
-function initConversationSearch() {
-    const searchInput = document.getElementById('ai-conversation-search');
-    if (searchInput) {
-        searchInput.addEventListener('input', function () {
-            loadConversationList(this.value);
-        });
-    }
+    updateConversationBulkDeleteUI();
 }
 
 // 选择对话
@@ -2190,16 +2383,13 @@ function selectConversation(conversationId) {
     }
 
     currentConversation = conversation;
+    currentSelectedImages = Array.isArray(conversation.images)
+        ? conversation.images.map(img => ({ ...img }))
+        : [];
 
     // 更新对话列表的高亮状态
     document.querySelectorAll('.conversation-item').forEach(item => {
-        if (item.dataset.id === conversationId) {
-            item.style.borderColor = '#6366f1';
-            item.style.background = 'rgba(99, 102, 241, 0.05)';
-        } else {
-            item.style.borderColor = 'transparent';
-            item.style.background = 'white';
-        }
+        item.classList.toggle('active', item.dataset.id === conversationId);
     });
 
     // 显示对话消息
@@ -2415,6 +2605,7 @@ function deleteConversationFromUI(conversationId) {
         // 如果删除的是当前对话，清空聊天消息
         if (currentConversation && currentConversation.id === conversationId) {
             currentConversation = null;
+            currentSelectedImages = [];
             const aiChatMessages = document.getElementById('ai-chat-messages');
             if (aiChatMessages) {
                 aiChatMessages.innerHTML = `
@@ -2452,6 +2643,7 @@ function deleteConversationFromUI(conversationId) {
             }
         } else {
             // 如果删除的是最后一个对话，清除选中的图片区域内的信息
+            currentSelectedImages = [];
             const aiImageCount = document.getElementById('ai-image-count');
             if (aiImageCount) {
                 aiImageCount.textContent = '0张';
