@@ -9,6 +9,128 @@ let modelStatusCache = {}; // 模型状态缓存 {modelId: {status, text, detail
 let aiConversationBulkDeleteMode = false;
 let selectedConversationIds = new Set();
 
+const RECOMMENDED_MODELS = {
+    'openai/gpt-4o-mini:online': {
+        label: 'GPT-4o Mini',
+        badge: '图像理解',
+        summary: '轻量快速，适合图片分析和高频交互',
+        tone: 'vision'
+    },
+    'google/gemini-2.0-flash-exp:free': {
+        label: 'Gemini Free',
+        badge: '免费优先',
+        summary: '零成本体验，适合图片理解和快速问答',
+        tone: 'free'
+    },
+    'deepseek/deepseek-chat:online': {
+        label: 'DeepSeek',
+        badge: '深度推理',
+        summary: '更适合复杂分析、结构化思考和文本推理',
+        tone: 'reasoning'
+    },
+    'meta-llama/llama-3.1-8b-instruct:free': {
+        label: 'Llama Free',
+        badge: '纯文本',
+        summary: '轻量通用，适合基础对话和文本整理',
+        tone: 'text'
+    },
+    'anthropic/claude-3.5-sonnet:online': {
+        label: 'Claude 3.5',
+        badge: '长文写作',
+        summary: '适合长文润色、总结归纳和高质量表达',
+        tone: 'writing'
+    },
+    'openai/gpt-4o:online': {
+        label: 'GPT-4o',
+        badge: '旗舰能力',
+        summary: '综合能力更强，适合图片理解和复杂任务',
+        tone: 'premium'
+    }
+};
+
+function getRecommendedModelMeta(modelId) {
+    return RECOMMENDED_MODELS[modelId] || null;
+}
+
+function getModelCapabilityMeta(modelId) {
+    const recommended = getRecommendedModelMeta(modelId);
+    if (recommended) {
+        return recommended;
+    }
+
+    const id = (modelId || '').toLowerCase();
+    if (id.includes('gpt-4o') || id.includes('gemini') || id.includes('vision') || id.includes('vl')) {
+        return {
+            label: modelId,
+            badge: '图像理解',
+            summary: '适合图片分析、OCR 与视觉问答',
+            tone: 'vision'
+        };
+    }
+
+    if (id.includes('deepseek')) {
+        return {
+            label: modelId,
+            badge: '深度推理',
+            summary: '适合复杂分析、方案判断与长链路推理',
+            tone: 'reasoning'
+        };
+    }
+
+    if (id.includes('claude')) {
+        return {
+            label: modelId,
+            badge: '长文写作',
+            summary: '适合长文本处理、润色和结构化输出',
+            tone: 'writing'
+        };
+    }
+
+    if (id.includes('llama')) {
+        return {
+            label: modelId,
+            badge: '纯文本',
+            summary: '适合基础对话、整理和通用文本任务',
+            tone: 'text'
+        };
+    }
+
+    return {
+        label: modelId || '未命名模型',
+        badge: '通用文本',
+        summary: '适合常规问答与基础文本任务',
+        tone: 'text'
+    };
+}
+
+function getModelChipClass(modelId) {
+    const tone = getModelCapabilityMeta(modelId).tone;
+    return `model-chip--${tone}`;
+}
+
+function getModelBadgeClass(modelId) {
+    const tone = getModelCapabilityMeta(modelId).tone;
+    return `model-badge--${tone}`;
+}
+
+function buildModelBadgeHTML(modelId) {
+    const meta = getModelCapabilityMeta(modelId);
+    return `<span class="model-badge ${getModelBadgeClass(modelId)}">${meta.badge}</span>`;
+}
+
+function buildModelDisplayText(modelId, fallbackName = '') {
+    const meta = getModelCapabilityMeta(modelId);
+    if (meta && meta.label) {
+        return `${meta.label} · ${meta.badge}`;
+    }
+
+    if (fallbackName) {
+        return fallbackName;
+    }
+
+    return modelId || '';
+}
+
 // 初始化知识库状态
 function initKnowledgeBaseStatus() {
     const savedKBStatus = localStorage.getItem('knowledgeBaseEnabled');
@@ -364,26 +486,21 @@ async function fetchModels(apiKey) {
                             priceInfo = ' (免费)';
                         }
                     }
-                    let visionBadge = '';
-                    const visionModels = [
-                        'vision', 'gpt-4o', 'gpt-4-turbo', 'gpt-4-vision',
-                        'claude-3', 'gemini-1.5', 'gemini-2.0', 'gemini-exp',
-                        'llava', 'cogvlm', 'qwen-vl', 'internvl', 'pixtral'
-                    ];
-                    const isVisionModel = visionModels.some(vm =>
-                        model.id.toLowerCase().includes(vm) ||
-                        model.name.toLowerCase().includes(vm)
-                    );
-                    if (isVisionModel) {
-                        visionBadge = ' 👁️';
-                    }
-                    option.textContent = model.name + priceInfo + visionBadge;
+                    const capabilityMeta = getModelCapabilityMeta(model.id);
+                    const badgeHTML = `<span class="custom-select-option-badge ${getModelBadgeClass(model.id)}">${capabilityMeta.badge}</span>`;
+                    option.innerHTML = `
+                        <span class="custom-select-option-name">${model.name}</span>
+                        <span class="custom-select-option-meta">
+                            <span class="custom-select-option-price">${priceInfo}</span>
+                            ${badgeHTML}
+                        </span>
+                    `;
                     option.dataset.info = model.description || '';
-                    option.dataset.vision = isVisionModel ? 'true' : 'false';
+                    option.dataset.badge = capabilityMeta.badge;
 
                     // 添加点击事件
                     option.addEventListener('click', function () {
-                        selectCustomOption(model.id, option.textContent);
+                        selectCustomOption(model.id, buildModelDisplayText(model.id, model.name));
                     });
 
                     selectOptions.appendChild(option);
@@ -392,12 +509,18 @@ async function fetchModels(apiKey) {
 
         const savedConfig = getAPIConfig();
         let selectedModel = null;
+        let useSavedModelFallback = false;
+        let savedModelFallbackText = '';
 
         if (savedConfig.model) {
             selectedModel = models.find(model => model.id === savedConfig.model);
+            if (!selectedModel && getRecommendedModelMeta(savedConfig.model)) {
+                useSavedModelFallback = true;
+                savedModelFallbackText = buildModelDisplayText(savedConfig.model);
+            }
         }
 
-        if (!selectedModel) {
+        if (!selectedModel && !useSavedModelFallback) {
             selectedModel = models.find(model => model.id === 'openai/gpt-4o-mini');
         }
 
@@ -413,22 +536,15 @@ async function fetchModels(apiKey) {
                     priceInfo = ' (免费)';
                 }
             }
-            let visionBadge = '';
-            const visionModels = [
-                'vision', 'gpt-4o', 'gpt-4-turbo', 'gpt-4-vision',
-                'claude-3', 'gemini-1.5', 'gemini-2.0', 'gemini-exp',
-                'llava', 'cogvlm', 'qwen-vl', 'internvl', 'pixtral'
-            ];
-            const isVisionModel = visionModels.some(vm =>
-                selectedModel.id.toLowerCase().includes(vm) ||
-                selectedModel.name.toLowerCase().includes(vm)
-            );
-            if (isVisionModel) {
-                visionBadge = ' 👁️';
-            }
-            const modelName = selectedModel.name + priceInfo + visionBadge;
+            const capabilityMeta = getModelCapabilityMeta(selectedModel.id);
+            const modelName = buildModelDisplayText(selectedModel.id, selectedModel.name);
             selectValue.textContent = modelName;
             hiddenInput.value = selectedModel.id;
+            renderModelInfo(selectedModel.id, selectedModel.description || '', capabilityMeta.summary);
+        } else if (useSavedModelFallback) {
+            selectValue.textContent = savedModelFallbackText;
+            hiddenInput.value = savedConfig.model;
+            renderModelInfo(savedConfig.model);
         }
 
         updateModelChips();
@@ -493,6 +609,7 @@ function selectCustomOption(modelId, modelName) {
     if (selectValue && hiddenInput) {
         selectValue.textContent = modelName;
         hiddenInput.value = modelId;
+        renderModelInfo(modelId);
         updateModelChips();
         checkModelAvailability(modelId);
     }
@@ -511,14 +628,16 @@ function selectModel(modelId) {
     if (!hiddenInput || !selectValue) return;
 
     const option = selectOptions ? selectOptions.querySelector(`.custom-select-option[data-value="${modelId}"]`) : null;
-    if (option) {
-        hiddenInput.value = modelId;
-        selectValue.textContent = option.textContent;
-        updateModelChips();
-        checkModelAvailability(modelId);
-    } else {
-        showToast(`模型 ${modelId} 正在加载中，请稍后再试`, 'info');
-    }
+    const capabilityMeta = getModelCapabilityMeta(modelId);
+
+    hiddenInput.value = modelId;
+    selectValue.textContent = option
+        ? buildModelDisplayText(modelId, capabilityMeta.label)
+        : buildModelDisplayText(modelId, capabilityMeta.label);
+
+    renderModelInfo(modelId, '', capabilityMeta.summary);
+    updateModelChips();
+    checkModelAvailability(modelId);
 }
 
 // 更新模型芯片状态
@@ -535,6 +654,18 @@ function updateModelChips() {
             chip.classList.remove('active');
         }
     });
+}
+
+function renderModelInfo(modelId, fallbackDescription = '', summary = '') {
+    const modelInfo = document.getElementById('model-info');
+    if (!modelInfo) return;
+
+    const meta = getModelCapabilityMeta(modelId);
+    const infoText = summary || fallbackDescription || meta.summary;
+    modelInfo.innerHTML = `
+        <span class="model-badge ${getModelBadgeClass(modelId)}">${meta.badge}</span>
+        <span class="model-info-text">${infoText}</span>
+    `;
 }
 
 // 检查模型可用性

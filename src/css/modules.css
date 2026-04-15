@@ -1,4 +1,4 @@
-#detail-overlay.detail-overlay {
+﻿#detail-overlay.detail-overlay {
     position: fixed;
     inset: 0;
     background: rgba(15, 23, 42, 0.5);
@@ -1170,47 +1170,187 @@
 .model-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
 }
 
 .model-chip {
-    padding: 8px 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 42px;
+    padding: 10px 14px;
     border: 1px solid #e2e8f0;
-    border-radius: 20px;
+    border-radius: 16px;
     background: #fff;
     color: #334155;
     font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .model-chip:hover {
-    border-color: #6366f1;
-    color: #6366f1;
-    background: rgba(99, 102, 241, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
 }
 
 .model-chip.active {
     border-color: #6366f1;
     background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
     color: white;
+    box-shadow: 0 12px 22px rgba(79, 70, 229, 0.25);
+}
+
+.model-chip-label {
+    white-space: nowrap;
+}
+
+.model-chip-tag,
+.model-badge,
+.custom-select-option-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.model-chip-tag {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    font-weight: 600;
+}
+
+.model-chip--vision .model-chip-tag {
+    color: #1d4ed8;
+}
+
+.model-chip--free .model-chip-tag {
+    color: #047857;
+}
+
+.model-chip--reasoning .model-chip-tag {
+    color: #b45309;
+}
+
+.model-chip--text .model-chip-tag {
+    color: #475569;
+}
+
+.model-chip--writing .model-chip-tag {
+    color: #7e22ce;
+}
+
+.model-chip--premium .model-chip-tag {
+    color: #be185d;
+}
+
+.model-chip.active .model-chip-tag {
+    color: #ffffff;
 }
 
 /* 模型信息样式 */
 .model-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
     font-size: 12px;
     color: #64748b;
     margin-top: 6px;
     line-height: 1.4;
 }
 
+.model-info-text {
+    flex: 1;
+    min-width: 0;
+    padding-top: 1px;
+}
+
 .vision-hint {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
     font-size: 12px;
-    color: #6366f1;
-    margin-top: 6px;
+    color: #64748b;
+}
+
+.vision-hint-label {
+    font-weight: 700;
+    color: #334155;
+    margin-right: 6px;
+}
+
+.model-badge--vision,
+.custom-select-option-badge.model-badge--vision {
+    background: rgba(59, 130, 246, 0.12);
+    color: #1d4ed8;
+}
+
+.model-badge--free,
+.custom-select-option-badge.model-badge--free {
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+}
+
+.model-badge--reasoning,
+.custom-select-option-badge.model-badge--reasoning {
+    background: rgba(245, 158, 11, 0.14);
+    color: #b45309;
+}
+
+.model-badge--text,
+.custom-select-option-badge.model-badge--text {
+    background: rgba(100, 116, 139, 0.14);
+    color: #475569;
+}
+
+.model-badge--writing,
+.custom-select-option-badge.model-badge--writing {
+    background: rgba(168, 85, 247, 0.14);
+    color: #7e22ce;
+}
+
+.model-badge--premium,
+.custom-select-option-badge.model-badge--premium {
+    background: rgba(236, 72, 153, 0.14);
+    color: #be185d;
+}
+
+.custom-select-option {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.custom-select-option-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.custom-select-option-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.custom-select-option-price {
+    color: #64748b;
+    font-size: 11px;
 }
 
 .model-status {

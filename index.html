@@ -501,9 +501,6 @@
                     </div>
                     <input type="hidden" id="openrouter-api-model" value="">
                     <div class="model-info" id="model-info"></div>
-                    <div class="vision-hint" id="vision-hint" style="display: none;">
-                        👁️ 支持图片识别
-                    </div>
                     <div class="model-status" id="model-status" style="display: none;">
                         <span class="model-status-icon" id="model-status-icon"></span>
                         <div>
@@ -515,17 +512,35 @@
                 <div class="recommended-models">
                     <label>推荐模型</label>
                     <div class="model-chips">
-                        <button class="model-chip" onclick="selectModel('openai/gpt-4o-mini:online')">GPT-4o Mini
-                            👁️</button>
-                        <button class="model-chip" onclick="selectModel('google/gemini-2.0-flash-exp:free')">Gemini Free
-                            👁️</button>
-                        <button class="model-chip"
-                            onclick="selectModel('deepseek/deepseek-chat:online')">DeepSeek</button>
-                        <button class="model-chip" onclick="selectModel('meta-llama/llama-3.1-8b-instruct:free')">Llama
-                            Free</button>
-                        <button class="model-chip" onclick="selectModel('anthropic/claude-3.5-sonnet:online')">Claude
-                            3.5 👁️</button>
-                        <button class="model-chip" onclick="selectModel('openai/gpt-4o:online')">GPT-4o 👁️</button>
+                        <button class="model-chip model-chip--vision"
+                            onclick="selectModel('openai/gpt-4o-mini:online')">
+                            <span class="model-chip-label">GPT-4o Mini</span>
+                            <span class="model-chip-tag">图像理解</span>
+                        </button>
+                        <button class="model-chip model-chip--free"
+                            onclick="selectModel('google/gemini-2.0-flash-exp:free')">
+                            <span class="model-chip-label">Gemini Free</span>
+                            <span class="model-chip-tag">免费优先</span>
+                        </button>
+                        <button class="model-chip model-chip--reasoning"
+                            onclick="selectModel('deepseek/deepseek-chat:online')">
+                            <span class="model-chip-label">DeepSeek</span>
+                            <span class="model-chip-tag">深度推理</span>
+                        </button>
+                        <button class="model-chip model-chip--text"
+                            onclick="selectModel('meta-llama/llama-3.1-8b-instruct:free')">
+                            <span class="model-chip-label">Llama Free</span>
+                            <span class="model-chip-tag">纯文本</span>
+                        </button>
+                        <button class="model-chip model-chip--writing"
+                            onclick="selectModel('anthropic/claude-3.5-sonnet:online')">
+                            <span class="model-chip-label">Claude 3.5</span>
+                            <span class="model-chip-tag">长文写作</span>
+                        </button>
+                        <button class="model-chip model-chip--premium" onclick="selectModel('openai/gpt-4o:online')">
+                            <span class="model-chip-label">GPT-4o</span>
+                            <span class="model-chip-tag">旗舰能力</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1254,6 +1269,45 @@
             background: rgba(99, 102, 241, 0.1);
             color: #6366f1;
             font-weight: 500;
+        }
+
+        .custom-select-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .custom-select-option-name {
+            flex: 1;
+            min-width: 0;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .custom-select-option-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .custom-select-option-price {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .custom-select-option-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+            white-space: nowrap;
         }
 
         .custom-select-optgroup {
