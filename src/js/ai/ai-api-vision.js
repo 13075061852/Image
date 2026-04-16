@@ -33,24 +33,11 @@ async function callOpenRouterAPI(imageData, resultElement, existingMessages = []
     const config = getAPIConfig();
 
     // 验证模型是否支持图像分析
-    const visionModels = [
-        'openai/gpt-4o', 'openai/gpt-4o-mini', 'openai/gpt-4-turbo', 'openai/gpt-4-vision',
-        'anthropic/claude-3-opus-20240229', 'anthropic/claude-3.5-sonnet',
-        'deepseek-ai/deepseek-vl-7b-chat',
-        'google/gemini-1.5-flash', 'google/gemini-1.5-pro', 'google/gemini-2.0-flash-exp:free',
-        'llava', 'cogvlm', 'qwen-vl', 'internvl', 'pixtral'
-    ];
-
-    // 检查模型是否在支持列表中，或者模型ID包含视觉相关关键词
-    const isVisionModel = visionModels.includes(config.model) ||
-        config.model.toLowerCase().includes('vision') ||
-        config.model.toLowerCase().includes('vl') ||
-        config.model.toLowerCase().includes('gemini') ||
-        config.model.toLowerCase().includes('claude-3') ||
-        config.model.toLowerCase().includes('gpt-4o');
+    // 仅允许明确支持图片输入的模型
+    const isVisionModel = supportsImageInput(config.model);
 
     if (imageData.length > 0 && !isVisionModel) {
-        throw new Error('当前选择的模型不支持图像分析，请选择支持视觉的模型如OpenAI GPT-4o或DeepSeek VL');
+        throw new Error('当前选择的模型不支持图片输入，请切换到支持视觉的模型。');
     }
 
     // 准备请求数据

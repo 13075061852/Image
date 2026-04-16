@@ -9,6 +9,24 @@ let modelStatusCache = {}; // 模型状态缓存 {modelId: {status, text, detail
 let aiConversationBulkDeleteMode = false;
 let selectedConversationIds = new Set();
 
+const IMAGE_MODEL_PREFIXES = [
+    'openai/gpt-4o',
+    'openai/gpt-4o-mini',
+    'openai/gpt-4-turbo',
+    'openai/gpt-4-vision',
+    'anthropic/claude-3-opus-20240229',
+    'anthropic/claude-3.5-sonnet',
+    'google/gemini-1.5-flash',
+    'google/gemini-1.5-pro',
+    'google/gemini-2.0-flash-exp',
+    'deepseek-ai/deepseek-vl-7b-chat',
+    'llava',
+    'cogvlm',
+    'qwen-vl',
+    'internvl',
+    'pixtral'
+];
+
 const RECOMMENDED_MODELS = {
     'openai/gpt-4o-mini:online': {
         label: 'GPT-4o Mini',
@@ -52,18 +70,35 @@ function getRecommendedModelMeta(modelId) {
     return RECOMMENDED_MODELS[modelId] || null;
 }
 
+function normalizeModelId(modelId) {
+    return (modelId || '').toLowerCase().trim();
+}
+
+function supportsImageInput(modelId) {
+    const normalizedModelId = normalizeModelId(modelId);
+    if (!normalizedModelId) return false;
+
+    return IMAGE_MODEL_PREFIXES.some(prefix => {
+        const normalizedPrefix = prefix.toLowerCase();
+        return normalizedModelId === normalizedPrefix || normalizedModelId.startsWith(`${normalizedPrefix}:`);
+    });
+}
+
 function getModelCapabilityMeta(modelId) {
     const recommended = getRecommendedModelMeta(modelId);
     if (recommended) {
-        return recommended;
+        return {
+            ...recommended,
+            supportsImages: supportsImageInput(modelId)
+        };
     }
 
-    const id = (modelId || '').toLowerCase();
-    if (id.includes('gpt-4o') || id.includes('gemini') || id.includes('vision') || id.includes('vl')) {
+    const id = normalizeModelId(modelId);
+    if (supportsImageInput(modelId)) {
         return {
             label: modelId,
             badge: '图像理解',
-            summary: '适合图片分析、OCR 与视觉问答',
+            summary: '支持图片输入、OCR 与视觉问答',
             tone: 'vision'
         };
     }

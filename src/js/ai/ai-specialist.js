@@ -452,15 +452,9 @@ function loadQualityAnswers() {
 async function callOpenRouterAPI(imageData, resultElement, existingMessages = []) {
     const config = getAPIConfig();
 
-    const visionModels = [
-        'vision', 'gpt-4o', 'gpt-4-turbo', 'gpt-4-vision',
-        'claude-3', 'gemini-1.5', 'gemini-2.0', 'gemini-exp',
-        'llava', 'cogvlm', 'qwen-vl', 'internvl', 'pixtral'
-    ];
-
-    const isVisionModel = visionModels.some(vm => config.model.toLowerCase().includes(vm));
+    const isVisionModel = supportsImageInput(config.model);
     if (!isVisionModel) {
-        throw new Error('当前模型可能不支持图像分析，请在 API 配置中切换到支持视觉的模型。');
+        throw new Error('当前模型不支持图片输入，请在 API 配置中切换到支持视觉的模型。');
     }
 
     const messages = existingMessages.length > 0 ? [...existingMessages] : [];
