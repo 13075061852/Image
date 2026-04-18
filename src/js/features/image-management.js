@@ -2957,23 +2957,107 @@ document.addEventListener('click', function (event) {
     }
 });
 
-// 点击更多按钮时切换下拉菜单
+// 点击更多按钮时在桌面端悬停展开、移动端点击切换
 document.addEventListener('DOMContentLoaded', function () {
+    const dropdown = document.querySelector('.dropdown');
     const moreButton = document.querySelector('.btn-more');
+    const dropdownContent = document.querySelector('.dropdown-content');
+    const responsiveMenu = document.getElementById('responsive-menu-panel');
+    let dropdownCloseTimer = null;
+
+    function openDesktopDropdown() {
+        if (dropdownCloseTimer) {
+            clearTimeout(dropdownCloseTimer);
+            dropdownCloseTimer = null;
+        }
+        if (!dropdownContent) return;
+        dropdownContent.classList.add('show');
+        if (moreButton) {
+            moreButton.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    function closeDesktopDropdown() {
+        if (dropdownCloseTimer) {
+            clearTimeout(dropdownCloseTimer);
+            dropdownCloseTimer = null;
+        }
+        if (!dropdownContent) return;
+        dropdownContent.classList.remove('show');
+        if (moreButton) {
+            moreButton.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    function scheduleCloseDesktopDropdown() {
+        if (window.innerWidth <= 768) return;
+        if (dropdownCloseTimer) {
+            clearTimeout(dropdownCloseTimer);
+        }
+        dropdownCloseTimer = window.setTimeout(() => {
+            closeDesktopDropdown();
+        }, 200);
+    }
+
+    if (dropdown) {
+        dropdown.addEventListener('mouseenter', function () {
+            if (window.innerWidth <= 768) return;
+            if (responsiveMenu) {
+                responsiveMenu.classList.remove('show');
+            }
+            openDesktopDropdown();
+        });
+
+        dropdown.addEventListener('mouseleave', function () {
+            if (window.innerWidth <= 768) return;
+            scheduleCloseDesktopDropdown();
+        });
+    }
+
     if (moreButton) {
         moreButton.addEventListener('click', function (event) {
+            if (window.innerWidth > 768) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
             event.stopPropagation(); // 阻止事件冒泡
 
-            // 关闭响应式菜单面板（如果打开）
-            const responsiveMenu = document.getElementById('responsive-menu-panel');
+            if (dropdownCloseTimer) {
+                clearTimeout(dropdownCloseTimer);
+                dropdownCloseTimer = null;
+            }
+
             if (responsiveMenu) {
                 responsiveMenu.classList.remove('show');
             }
 
-            const dropdownContent = document.querySelector('.dropdown-content');
             if (dropdownContent) {
-                dropdownContent.classList.toggle('show');
+                const isOpen = dropdownContent.classList.toggle('show');
+                moreButton.setAttribute('aria-expanded', String(isOpen));
             }
+        });
+    }
+
+    if (dropdownContent) {
+        dropdownContent.addEventListener('click', function (event) {
+            if (!event.target.closest('button')) return;
+
+            if (window.innerWidth <= 768) {
+                closeDesktopDropdown();
+            }
+        });
+
+        dropdownContent.addEventListener('mouseenter', function () {
+            if (dropdownCloseTimer) {
+                clearTimeout(dropdownCloseTimer);
+                dropdownCloseTimer = null;
+            }
+        });
+
+        dropdownContent.addEventListener('mouseleave', function () {
+            scheduleCloseDesktopDropdown();
         });
     }
 });

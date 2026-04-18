@@ -114,9 +114,6 @@
         <div id="all-category-btn" class="nav-item active" onclick="filterCategory('all')">全部</div>
         <div id="category-list"></div>
         <hr style="width:100%; border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 24px 0;">
-        <button class="btn btn-primary" onclick="showCategoryManagementModal()"
-            style="width: 100%; margin-top: auto; border-radius: 14px; padding: 16px 20px; font-size: 16px; font-weight: 600; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">📁
-            分类管理</button>
         <input type="file" id="fileInput" hidden multiple accept="image/*">
     </div>
 
@@ -135,8 +132,10 @@
                 <button class="btn btn-primary" onclick="toggleModeFilter()" id="mode-toggle-btn">📊 ALL</button>
                 <button class="btn btn-ai" onclick="openAIAnalysis()">🤖 AI分析</button>
                 <div class="dropdown">
-                    <button class="btn btn-more">⋮ 更多</button>
+                    <button class="btn btn-more" aria-haspopup="true" aria-expanded="false">更多</button>
                     <div class="dropdown-content">
+                        <button class="btn btn-category-management" onclick="showCategoryManagementModal()">📁 分类管理</button>
+                        <div class="dropdown-divider"></div>
                         <button class="btn btn-config" onclick="showAPIConfigModal()">⚙️ 配置API</button>
                         <button class="btn btn-knowledge" onclick="openKnowledgeManagementModal()">🧠 智能大脑</button>
                         <button class="btn btn-print" onclick="printSelected()">🖨️ 打印选中</button>
@@ -153,6 +152,7 @@
 
             <!-- 响应式菜单面板 -->
             <div class="responsive-menu-panel" id="responsive-menu-panel">
+                <button class="btn btn-category-management" onclick="showCategoryManagementModal()">📁 分类管理</button>
                 <button class="btn btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
                 <button class="btn btn-secondary" onclick="toggleSelectAll()" id="mobile-toggle-select-btn">✓ 全选</button>
                 <button class="btn btn-primary" onclick="toggleModeFilter()" id="mobile-mode-toggle-btn">📊 ALL</button>
