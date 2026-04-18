@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 图片管理器（纯前端单页）主逻辑文件
  *
  * ## 你可以把它当成 6 个子模块
@@ -456,6 +456,50 @@ function renderTags() {
     `;
 }
 
+function renderSelectedImagesPanel() {
+    const panel = document.getElementById('selected-images-panel');
+    if (!panel) return;
+
+    const selectedImages = allImages.filter(img => selectedIds.has(img.id) && !img.isEmptyCategory);
+
+    if (selectedImages.length === 0) {
+        panel.innerHTML = '';
+        return;
+    }
+
+    const items = selectedImages.map(img => {
+        const title = removeFileExtension(img.name || '');
+        const category = img.category || '其他';
+        return `
+            <div class="selected-image-item" role="button" tabindex="0" onclick="openDetail(${img.id})" title="${title}">
+                <button
+                    type="button"
+                    class="selected-image-remove-btn"
+                    aria-label="取消选择 ${title}"
+                    onclick="event.stopPropagation(); toggleSelect(${img.id});"
+                >×</button>
+                <span class="selected-image-thumb">
+                    <img src="${img.data}" alt="${title}" draggable="false">
+                </span>
+                <span class="selected-image-meta">
+                    <strong>${title}</strong>
+                    <small>${category}</small>
+                </span>
+            </div>
+        `;
+    }).join('');
+
+    panel.innerHTML = `
+        <div class="selected-images-header">
+            <span>已选列表</span>
+            <button type="button" class="selected-images-action-btn" onclick="clearSelection()">清空</button>
+        </div>
+        <div class="selected-images-list">
+            ${items}
+        </div>
+    `;
+}
+
 function getFilteredImages(searchTerm = currentSearchTerm) {
     let filtered = allImages.filter(img => !img.isEmptyCategory);
 
@@ -790,6 +834,7 @@ function updateUILegacy() {
 
     // 更新"全部"分类的统计信息
     updateAllCategoryStats();
+    renderSelectedImagesPanel();
 }
 
 // 切换模式过滤器
@@ -3323,6 +3368,19 @@ async function updateExistingImageWithTags(file, category = '', tags = []) {
 let currentPage = 0;
 let zoomIndex = 0; // 当前放大查看的图片索引（相对于 compareImages）
 let imageZoomLevels = {}; // 存储每张图片的缩放级别
+let zoomImages = null;
+
+function getActiveZoomImages() {
+    if (Array.isArray(zoomImages) && zoomImages.length > 0) {
+        return zoomImages;
+    }
+
+    if (typeof compareImages !== 'undefined' && Array.isArray(compareImages)) {
+        return compareImages;
+    }
+
+    return [];
+}
 
 // 对比功能已移除，相关函数已删除
 
@@ -3330,6 +3388,7 @@ let imageZoomLevels = {}; // 存储每张图片的缩放级别
 document.addEventListener('keydown', (e) => {
     const zoomOverlay = document.getElementById('zoom-overlay');
     const isZoomOpen = zoomOverlay && zoomOverlay.style.display === 'flex';
+    const activeZoomImages = getActiveZoomImages();
 
     // 如果放大层打开，优先处理放大层的快捷键
     if (isZoomOpen) {
@@ -3337,14 +3396,15 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
             zoomOverlay.classList.add('hidden');
             zoomOverlay.style.display = 'none';
+            zoomImages = null;
         } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
             e.preventDefault();
-            if (zoomIndex > 0) {
+            if (zoomIndex > 0 && activeZoomImages.length > 1) {
                 openZoomByIndex(zoomIndex - 1);
             }
         } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
             e.preventDefault();
-            if (zoomIndex < compareImages.length - 1) {
+            if (zoomIndex < activeZoomImages.length - 1) {
                 openZoomByIndex(zoomIndex + 1);
             }
         }
@@ -3444,73 +3504,40 @@ function renderComparePage() {
 }
 
 // 放大预览功能
-function openZoomByIndex(index) {
-    if (!compareImages || !compareImages.length) return;
-    if (index < 0 || index >= compareImages.length) return;
+function openZoomByIndex(index, images = null) {
+    if (images) {
+        zoomImages = images;
+    }
+
+    const activeImages = getActiveZoomImages();
+    if (!activeImages.length) return;
+    if (index < 0 || index >= activeImages.length) return;
     zoomIndex = index;
 
     const overlay = document.getElementById('zoom-overlay');
     const img = document.getElementById('zoom-image');
-    const text = document.getElementById('zoom-title');
-    const list = document.getElementById('zoom-list');
-    if (!overlay || !img || !text || !list) return;
+    if (!overlay || !img) return;
 
-    const current = compareImages[zoomIndex];
+    const current = activeImages[zoomIndex];
     img.src = current.data;
     img.alt = removeFileExtension(current.name || '');
-    text.textContent = `${removeFileExtension(current.name || '')} (${current.category || ''})`;
-
-    // 渲染左侧缩略图列表（带名称）
-    list.innerHTML = compareImages.map((imgItem, idx) => `
-        <div class="zoom-thumb ${idx === zoomIndex ? 'active' : ''}" onclick="setZoomIndex(${idx}, event)" title="${removeFileExtension(imgItem.name || '')}">
-            <img src="${imgItem.data}" alt="${removeFileExtension(imgItem.name || '')}" draggable="false">
-            <span>${removeFileExtension(imgItem.name || '')}</span>
-        </div>
-    `).join('');
 
     overlay.classList.remove('hidden');
     overlay.style.display = 'flex';
 
-    // 确保当前选中的缩略图在可视区域内
-    setTimeout(() => {
-        const activeThumb = list.querySelector('.zoom-thumb.active');
-        if (activeThumb) {
-            activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    }, 50);
-
-    // 为放大覆盖层添加滚轮事件监听器，用于切换图片
+    // 鼠标滚轮仅在多图模式下切换图片；单图模式保持静止
     overlay.onwheel = (e) => {
-        // 检查鼠标是否在右侧AI内容区域
-        const rightPanel = overlay.querySelector('.zoom-right-panel');
-        const isInRightPanel = rightPanel && rightPanel.contains(e.target);
-
-        // 如果鼠标在右侧AI内容区域，不阻止默认行为，允许滚动
-        if (isInRightPanel) {
+        if (activeImages.length <= 1) {
             return;
         }
 
-        // 否则，阻止默认行为，用于切换图片
         e.preventDefault();
-        if (e.deltaY < 0) {
-            // 向上滚动，显示前一张图片
-            if (zoomIndex > 0) {
-                openZoomByIndex(zoomIndex - 1);
-            }
-        } else {
-            // 向下滚动，显示后一张图片
-            if (zoomIndex < compareImages.length - 1) {
-                openZoomByIndex(zoomIndex + 1);
-            }
+        if (e.deltaY < 0 && zoomIndex > 0) {
+            openZoomByIndex(zoomIndex - 1);
+        } else if (e.deltaY > 0 && zoomIndex < activeImages.length - 1) {
+            openZoomByIndex(zoomIndex + 1);
         }
     };
-}
-
-function setZoomIndex(index, event) {
-    if (event) {
-        event.stopPropagation();
-    }
-    openZoomByIndex(index);
 }
 
 function closeZoom(event) {
@@ -3520,16 +3547,32 @@ function closeZoom(event) {
         if (overlay) {
             overlay.classList.add('hidden');
             overlay.style.display = 'none';
+            zoomImages = null;
         }
     }
 }
 
 // 切换放大视图
 function toggleZoomView() {
-    if (compareImages && compareImages.length > 0) {
-        // 如果当前处于对比页面且有图片，打开放大视图
+    const activeImages = getActiveZoomImages();
+    if (activeImages.length > 0) {
         openZoomByIndex(zoomIndex || 0);
     }
+}
+
+function openDetailImageZoom(event) {
+    if (event) {
+        event.stopPropagation();
+    }
+
+    const img = allImages.find(i => i.id === currentDetailId);
+    if (!img) return;
+
+    openZoomByIndex(0, [{
+        name: img.name,
+        data: img.data,
+        category: img.category
+    }]);
 }
 
 // 图片详情功能
@@ -3814,4 +3857,5 @@ function updateUI(visible = getFilteredImages()) {
     }
 
     updateAllCategoryStats();
+    renderSelectedImagesPanel();
 }

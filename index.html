@@ -110,12 +110,17 @@
 <body>
 
     <div id="sidebar">
-        <h3>Image Gallery</h3>
-        <div id="all-category-btn" class="nav-item active" onclick="filterCategory('all')">全部</div>
-        <div id="category-list"></div>
-        <hr style="width:100%; border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 24px 0;">
-        <input type="file" id="fileInput" hidden multiple accept="image/*">
+        <div class="sidebar-top">
+            <h3>Image Gallery</h3>
+            <div id="all-category-btn" class="nav-item active" onclick="filterCategory('all')">全部</div>
+            <div id="category-list"></div>
+            <hr style="width:100%; border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 24px 0;">
+            <input type="file" id="fileInput" hidden multiple accept="image/*">
+        </div>
+    <div class="sidebar-bottom">
+        <div id="selected-images-panel" class="selected-images-panel"></div>
     </div>
+</div>
 
     <div id="main">
         <header>
@@ -188,20 +193,8 @@
     <!-- 放大查看蒙层 -->
     <div id="zoom-overlay" class="hidden" onclick="closeZoom(event)">
         <div class="zoom-content">
-            <div class="zoom-sidebar" onclick="event.stopPropagation()">
-                <div id="zoom-list"></div>
-            </div>
             <div class="zoom-main">
-                <div class="zoom-left-panel">
-                    <img id="zoom-image" src="" alt="">
-                    <div id="zoom-title" class="zoom-title"></div>
-                </div>
-                <div class="zoom-right-panel">
-                    <div class="zoom-ai-section">
-                        <button id="zoom-ai-btn" class="btn btn-ai" onclick="analyzeZoomImage()">🤖 AI解析</button>
-                        <div id="zoom-ai-result" class="zoom-ai-result"></div>
-                    </div>
-                </div>
+                <img id="zoom-image" src="" alt="">
             </div>
         </div>
     </div>
@@ -219,7 +212,8 @@
             <div class="detail-body">
                 <div class="detail-image-wrapper">
                     <div class="detail-image-container">
-                        <img id="detail-image" class="detail-image" src="" alt="">
+                        <img id="detail-image" class="detail-image" src="" alt="" title="点击放大查看"
+                            onclick="openDetailImageZoom(event)">
                     </div>
                 </div>
                 <div class="detail-form">

@@ -270,4 +270,7 @@ function updateUI(visible = getFilteredImages()) {
     }
 
     updateAllCategoryStats();
+    if (typeof renderSelectedImagesPanel === 'function') {
+        renderSelectedImagesPanel();
+    }
 }
